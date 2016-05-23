@@ -21,7 +21,7 @@ public:
      ~utils();
     static thread_state create_thread_state_from_str(const string& s_ts,
             const char& delim = '|');
-    static thread_state create_thread_state_from_gs_str(const string& s_ts,
+    static global_state create_global_state_from_str(const string& s_ts,
             const char& delim = '|');
 
     static void print_adj_list(

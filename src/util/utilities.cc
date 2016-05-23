@@ -26,7 +26,7 @@ utils::~utils() {
  */
 thread_state utils::create_thread_state_from_str(const string& s_ts,
         const char& delim) {
-    vector<string> vs_ts = PPRINT::split(s_ts, delim);
+    deque<string> vs_ts = PPRINT::split(s_ts, delim);
     if (vs_ts.size() != 2) {
         throw("The format of thread state is wrong.");
     }
@@ -39,22 +39,25 @@ thread_state utils::create_thread_state_from_str(const string& s_ts,
  * @param delim
  * @return
  */
-thread_state utils::create_thread_state_from_gs_str(const string& s_ts,
+global_state utils::create_global_state_from_str(const string& s_ts,
         const char& delim) {
     auto vs_ts = PPRINT::split(s_ts, delim);
     if (vs_ts.size() != 2) {
         throw bws_runtime_error("The format of global state is wrong.");
     }
     auto vs_locals = PPRINT::split(vs_ts[1], ',');
-    return thread_state(stoi(vs_ts[0]), stoi(vs_locals[0]));
+    ca_locals locals;
+    for (const auto& l : vs_locals)
+        locals[stoi(l)]++;
+    return global_state(stoi(vs_ts[0]), locals);
 }
 /**
  * @brief print all of the transitions in the thread-state transition diagram
  * @param adjacency_list
  * @param out
  */
-void utils::print_adj_list(const map<thread_state, set<thread_state> >& adj_list,
-        ostream& out) {
+void utils::print_adj_list(
+        const map<thread_state, set<thread_state> >& adj_list, ostream& out) {
     out << thread_state::L << " " << thread_state::S << endl;
     for (auto iu = adj_list.begin(); iu != adj_list.end(); ++iu)
         for (auto iv = iu->second.begin(); iv != iu->second.end(); ++iv)
@@ -100,7 +103,8 @@ void iparser::remove_comments(const string& in, string& out,
     out = outstream.str();
 }
 
-void iparser::remove_comments(istream& in, ostream& out, const string& comment) {
+void iparser::remove_comments(istream& in, ostream& out,
+        const string& comment) {
     string line;
     while (getline(in, line = "")) {
         const size_t comment_start = line.find(comment);

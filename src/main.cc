@@ -40,7 +40,7 @@ int main(const int argc, const char * const * const argv) {
         const string& final_ts = cmd.arg_value(cmd_line::prob_inst_opts(),
                 "--target");
 
-        BSSP bssp;
+        BSSP bssp(initl_ts, final_ts, filename);
         bool is_reachable = true;
         cout << "======================================================\n";
         cout << "Target";

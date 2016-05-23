@@ -169,6 +169,7 @@ public:
     inline global_state(const shared_state& share, const ca_locals& locals);
     inline global_state(const shared_state& share, const ca_locals& locals,
             shared_ptr<const global_state> pi);
+    inline global_state(const global_state& s);
 
     ~global_state() {
     }
@@ -244,6 +245,11 @@ inline global_state::global_state(const shared_state& share,
 inline global_state::global_state(const shared_state& share,
         const ca_locals& locals, shared_ptr<const global_state> pi) :
         share(share), locals(locals), pi(pi) {
+}
+
+inline global_state::global_state(const global_state& s) :
+        share(s.get_share()), locals(s.get_locals()), pi(s.get_pi()) {
+
 }
 
 /**
@@ -335,6 +341,7 @@ inline bool operator!=(const global_state& s1, const global_state& s2) {
 }
 
 using vertex = id_thread_state;
+
 enum class type_trans {
     NORM, SPAW, BRCT
 };
@@ -358,6 +365,10 @@ public:
         return dst;
     }
 
+    inline type_trans get_type() const {
+        return type;
+    }
+
 private:
     vertex src; /// source      of transition
     vertex dst; /// destination of transition
@@ -366,7 +377,6 @@ private:
 
 inline transition::transition(const transition& t) :
         src(t.src), dst(t.dst), type(t.type) {
-
 }
 
 inline transition::transition(const vertex& src, const vertex& dst) :
@@ -376,7 +386,6 @@ inline transition::transition(const vertex& src, const vertex& dst) :
 inline transition::transition(const vertex& src, const vertex& dst,
         const type_trans& type) :
         src(src), dst(dst), type(type) {
-
 }
 
 inline ostream& transition::to_stream(ostream& out) const {
@@ -392,7 +401,7 @@ inline ostream& transition::to_stream(ostream& out) const {
         out << "->";
         break;
     }
-    out << " " << dst << "\n";
+    out << " " << dst;
     return out;
 }
 
@@ -457,6 +466,8 @@ inline bool operator>(const transition& r1, const transition& r2) {
         return r1.get_dst() > r2.get_dst();
     return r1.get_src() > r2.get_src();
 }
+
+using adj_list = vector<deque<id_transition>>;
 
 } /* namespace BSSP */
 

@@ -23,4 +23,8 @@ bool refer::OPT_PRINT_CMD = false;
 bool refer::OPT_PRINT_ALL = false;
 
 clock_t refer::ELAPSED_TIME = clock();
+
+string refer::TMP_FILENAME = "/tmp/tmp.tts.no_comment";
+string refer::COMMENT = "#";
+
 } /* namespace SURA */

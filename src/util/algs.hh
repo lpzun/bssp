@@ -20,8 +20,8 @@ short compare_container(const T& x, const T& y);
 }
 
 namespace PPRINT {
-vector<string> split(const string &s, char delim, vector<string> &elems);
-vector<string> split(const string &s, const char& delim);
+deque<string> split(const string &s, const char& delim);
+deque<string> split(const string &s, char delim, deque<string> &elems);
 
 enum class alignment {
     LEFTJUST, RIGHTJUST, CENTERED

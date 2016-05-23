@@ -24,6 +24,9 @@ public:
     /// global variable for elapsed time
     static clock_t ELAPSED_TIME;
 
+    static string TMP_FILENAME;
+    static string COMMENT;
+
 };
 } /* namespace SURA */
 

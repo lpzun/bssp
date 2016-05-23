@@ -90,8 +90,8 @@ namespace PPRINT {
  * @param delim: a delimiter
  * @return a vector of string
  */
-vector<string> split(const string &s, const char& delim) {
-    vector<string> elems;
+deque<string> split(const string &s, const char& delim) {
+    deque<string> elems;
     split(s, delim, elems);
     return elems;
 }
@@ -103,7 +103,7 @@ vector<string> split(const string &s, const char& delim) {
  * @param elems
  * @return a vector of string
  */
-vector<string> split(const string &s, char delim, vector<string> &elems) {
+deque<string> split(const string &s, char delim, deque<string> &elems) {
     std::stringstream ss(s);
     string item;
     while (std::getline(ss, item, delim)) {
@@ -117,7 +117,7 @@ template<class T> string width(const T& x, cushort& width) {
     os << x;
     string s = os.str();
 
-    vector<string> ss = split(s, '\n');
+    deque<string> ss = split(s, '\n');
     if (ss.size() <= 1)
         return s;
 
