@@ -181,10 +181,10 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
     for (auto s = 0; s < thread_state::S; ++s) {
         cout << "shared state " << s << ": (";
         for (const auto& v : s_incoming[s])
-            cout << "x" << v << " + ";
+        cout << "x" << v << " + ";
         cout << ") - (";
         for (const auto& v : s_outgoing[s])
-            cout << "x" << v << " + ";
+        cout << "x" << v << " + ";
         cout << ")";
         cout << "\n";
     }
@@ -192,10 +192,10 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
     for (auto l = 0; l < thread_state::L; ++l) {
         cout << "local state " << l << ": (";
         for (const auto& v : l_incoming[l])
-            cout << "x" << v << " + ";
+        cout << "x" << v << " + ";
         cout << ") - (";
         for (const auto& v : l_outgoing[l])
-            cout << "x" << v << " + ";
+        cout << "x" << v << " + ";
         cout << ")";
         cout << "\n";
     }
