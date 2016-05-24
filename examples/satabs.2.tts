@@ -1,0 +1,139 @@
+# error state is shared num 4 local num 46
+# local state num is pc*2+localstate
+# maximum pc is 22
+# shared state 0: m=0 ts=0
+# shared state 2: m=1 ts=0
+# local state 0: tts-pc=0 b0=0
+# local state 1: tts-pc=0 b0=1
+5 47
+# nondet init local var 0
+# m=0 ts=0 tts-pc=0 b0=0 --> m=0 ts=0 tts-pc=1 b0=0
+0 0 -> 0 2
+# m=0 ts=0 tts-pc=0 b0=1 --> m=0 ts=0 tts-pc=1 b0=0
+0 1 -> 0 2
+# m=0 ts=0 tts-pc=0 b0=0 --> m=0 ts=0 tts-pc=1 b0=1
+0 0 -> 0 3
+# m=0 ts=0 tts-pc=0 b0=1 --> m=0 ts=0 tts-pc=1 b0=1
+0 1 -> 0 3
+# BP-PC7: GOTO at file ./cav16.bm/02_inc_c/main.c line 58 function main
+# m=0 ts=0 tts-pc=1 b0=0 --> m=0 ts=0 tts-pc=2 b0=0
+0 2 -> 0 4
+# m=0 ts=0 tts-pc=1 b0=1 --> m=0 ts=0 tts-pc=2 b0=1
+0 3 -> 0 5
+# BP-PC8: START_THREAD at file ./cav16.bm/02_inc_c/main.c line 58 function main
+# m=0 ts=0 tts-pc=2 b0=0 --> m=0 ts=1 tts-pc=3 b0=0
+0 4 +> 1 6
+# m=0 ts=1 tts-pc=2 b0=0 --> m=0 ts=0 tts-pc=4 b0=0
+1 4 -> 0 8
+# m=0 ts=0 tts-pc=2 b0=1 --> m=0 ts=1 tts-pc=3 b0=1
+0 5 +> 1 7
+# m=0 ts=1 tts-pc=2 b0=1 --> m=0 ts=0 tts-pc=4 b0=1
+1 5 -> 0 9
+# BP-PC9: GOTO at 
+# m=0 ts=0 tts-pc=3 b0=0 --> m=0 ts=0 tts-pc=20 b0=0
+0 6 -> 0 40
+# m=0 ts=0 tts-pc=3 b0=1 --> m=0 ts=0 tts-pc=20 b0=1
+0 7 -> 0 41
+# BP-PC10: LOCATION at file ./cav16.bm/02_inc_c/main.c line 58 function main
+# m=0 ts=0 tts-pc=4 b0=0 --> m=0 ts=0 tts-pc=5 b0=0
+0 8 -> 0 10
+# m=0 ts=0 tts-pc=4 b0=1 --> m=0 ts=0 tts-pc=5 b0=1
+0 9 -> 0 11
+# BP-PC13: DECL at file ./cav16.bm/02_inc_c/main.c line 37 function thr1
+# m=0 ts=0 tts-pc=5 b0=0 --> m=0 ts=0 tts-pc=6 b0=0
+0 10 -> 0 12
+# m=0 ts=0 tts-pc=5 b0=1 --> m=0 ts=0 tts-pc=6 b0=0
+0 11 -> 0 12
+# m=0 ts=0 tts-pc=5 b0=0 --> m=0 ts=0 tts-pc=6 b0=1
+0 10 -> 0 13
+# m=0 ts=0 tts-pc=5 b0=1 --> m=0 ts=0 tts-pc=6 b0=1
+0 11 -> 0 13
+# BP-PC14: ASSIGN at file ./cav16.bm/02_inc_c/main.c line 40 function thr1
+# m=0 ts=0 tts-pc=6 b0=0 --> m=0 ts=0 tts-pc=7 b0=0
+0 12 -> 0 14
+# m=0 ts=0 tts-pc=6 b0=1 --> m=0 ts=0 tts-pc=7 b0=1
+0 13 -> 0 15
+# BP-PC15: GOTO at file ./cav16.bm/02_inc_c/main.c line 42 function thr1
+# m=0 ts=0 tts-pc=7 b0=0 --> m=0 ts=0 tts-pc=9 b0=0
+0 14 -> 0 18
+# m=0 ts=0 tts-pc=7 b0=0 --> m=0 ts=0 tts-pc=8 b0=0
+0 14 -> 0 16
+# m=0 ts=0 tts-pc=7 b0=1 --> m=0 ts=0 tts-pc=9 b0=1
+0 15 -> 0 19
+# m=0 ts=0 tts-pc=7 b0=1 --> m=0 ts=0 tts-pc=8 b0=1
+0 15 -> 0 17
+# BP-PC17: GOTO at file ./cav16.bm/02_inc_c/main.c line 43 function thr1
+# m=0 ts=0 tts-pc=8 b0=0 --> m=0 ts=0 tts-pc=18 b0=0
+0 16 -> 0 36
+# m=0 ts=0 tts-pc=8 b0=1 --> m=0 ts=0 tts-pc=18 b0=1
+0 17 -> 0 37
+# BP-PC18: ASSIGN at file ./cav16.bm/02_inc_c/main.c line 46 function thr1
+# m=0 ts=0 tts-pc=9 b0=0 --> m=0 ts=0 tts-pc=10 b0=0
+0 18 -> 0 20
+# m=0 ts=0 tts-pc=9 b0=1 --> m=0 ts=0 tts-pc=10 b0=1
+0 19 -> 0 21
+# BP-PC19: ATOMIC_BEGIN at file ./cav16.bm/02_inc_c/main.c line 48 function thr1
+# m=0 ts=0 tts-pc=10 b0=0 --> m=1 ts=0 tts-pc=11 b0=0
+0 20 -> 2 22
+# m=0 ts=0 tts-pc=10 b0=1 --> m=1 ts=0 tts-pc=11 b0=1
+0 21 -> 2 23
+# BP-PC20: GOTO at file ./cav16.bm/02_inc_c/main.c line 48 function thr1
+# m=1 ts=0 tts-pc=11 b0=0 --> m=1 ts=0 tts-pc=14 b0=0
+2 22 -> 2 28
+# m=1 ts=0 tts-pc=11 b0=0 --> m=1 ts=0 tts-pc=12 b0=0
+2 22 -> 2 24
+# m=1 ts=0 tts-pc=11 b0=1 --> m=1 ts=0 tts-pc=14 b0=1
+2 23 -> 2 29
+# m=1 ts=0 tts-pc=11 b0=1 --> m=1 ts=0 tts-pc=12 b0=1
+2 23 -> 2 25
+# BP-PC22: ASSIGN at file ./cav16.bm/02_inc_c/main.c line 48 function thr1
+# m=1 ts=0 tts-pc=12 b0=0 --> m=1 ts=0 tts-pc=13 b0=0
+2 24 -> 2 26
+# m=1 ts=0 tts-pc=12 b0=1 --> m=1 ts=0 tts-pc=13 b0=0
+2 25 -> 2 26
+# BP-PC23: GOTO at 
+# m=1 ts=0 tts-pc=13 b0=0 --> m=1 ts=0 tts-pc=15 b0=0
+2 26 -> 2 30
+# m=1 ts=0 tts-pc=13 b0=1 --> m=1 ts=0 tts-pc=15 b0=1
+2 27 -> 2 31
+# BP-PC24: ASSIGN at file ./cav16.bm/02_inc_c/main.c line 48 function thr1
+# m=1 ts=0 tts-pc=14 b0=0 --> m=1 ts=0 tts-pc=15 b0=1
+2 28 -> 2 31
+# m=1 ts=0 tts-pc=14 b0=1 --> m=1 ts=0 tts-pc=15 b0=1
+2 29 -> 2 31
+# BP-PC25: ATOMIC_END at file ./cav16.bm/02_inc_c/main.c line 48 function thr1
+# m=1 ts=0 tts-pc=15 b0=0 --> m=0 ts=0 tts-pc=16 b0=0
+2 30 -> 0 32
+# m=1 ts=0 tts-pc=15 b0=1 --> m=0 ts=0 tts-pc=16 b0=1
+2 31 -> 0 33
+# BP-PC26: GOTO at file ./cav16.bm/02_inc_c/main.c line 50 function thr1
+# m=0 ts=0 tts-pc=16 b0=0 --> m=0 ts=0 tts-pc=17 b0=0
+0 32 -> 0 34
+# m=0 ts=0 tts-pc=16 b0=1 --> m=0 ts=0 tts-pc=6 b0=1
+0 33 -> 0 13
+# BP-PC27: ASSERT at file ./cav16.bm/02_inc_c/main.c line 51 function thr1
+# m=0 ts=0 tts-pc=17 b0=0 --> m=0 ts=0 tts-pc=18 b0=0
+0 34 -> 0 36
+# m=0 ts=0 tts-pc=17 b0=0 --> error error
+0 34 -> 4 46
+# m=0 ts=0 tts-pc=17 b0=1 --> m=0 ts=0 tts-pc=18 b0=1
+0 35 -> 0 37
+# m=0 ts=0 tts-pc=17 b0=1 --> error error
+0 35 -> 4 46
+# BP-PC29: LOCATION at file ./cav16.bm/02_inc_c/main.c line 54 function thr1
+# m=0 ts=0 tts-pc=18 b0=0 --> m=0 ts=0 tts-pc=19 b0=0
+0 36 -> 0 38
+# m=0 ts=0 tts-pc=18 b0=1 --> m=0 ts=0 tts-pc=19 b0=1
+0 37 -> 0 39
+# BP-PC30: END_THREAD at file ./cav16.bm/02_inc_c/main.c line 58 function main
+# BP-PC31: GOTO at file ./cav16.bm/02_inc_c/main.c line 58 function main
+# m=0 ts=0 tts-pc=20 b0=0 --> m=0 ts=0 tts-pc=1 b0=0
+0 40 -> 0 2
+# m=0 ts=0 tts-pc=20 b0=1 --> m=0 ts=0 tts-pc=1 b0=1
+0 41 -> 0 3
+# BP-PC32: OTHER at file ./cav16.bm/02_inc_c/main.c line 59 function main
+# m=0 ts=0 tts-pc=21 b0=0 --> m=0 ts=0 tts-pc=22 b0=0
+0 42 -> 0 44
+# m=0 ts=0 tts-pc=21 b0=1 --> m=0 ts=0 tts-pc=22 b0=1
+0 43 -> 0 45
+# BP-PC34: END_FUNCTION at 
