@@ -412,8 +412,8 @@ bool BSSP::is_minimal(const syst_state& tau, const antichain& W) {
  * @param W  :
  */
 void BSSP::minimize(const syst_state& tau, antichain& W) {
-    auto iw = W.cbegin();
-    while (iw != W.cend()) {
+    auto iw = W.begin();
+    while (iw != W.end()) {
         if (is_covered(tau, *iw)) {
             iw = W.erase(iw);
         } else {
