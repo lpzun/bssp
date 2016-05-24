@@ -16,7 +16,8 @@ using namespace z3;
 namespace bssp {
 
 using syst_state = global_state;
-using antichain = vector<deque<syst_state>>;
+using antichain = deque<syst_state>;
+using adj_chain = vector<antichain>;
 
 /// store all incoming transitions w.r.t. a specific shared/local state
 using incoming = deque<id_transition>;
@@ -54,7 +55,8 @@ private:
     bool solicit_for_BWS();
     deque<syst_state> step(const syst_state& _tau);
 
-    bool is_reached(const syst_state& tau);
+    bool is_coverable(const syst_state& tau);
+    bool is_uncoverable(const syst_state& tau, antichain& W);
     bool is_covered(const syst_state& tau1, const syst_state& tau2);
     bool is_minimal(const syst_state& tau, const antichain& W);
     void minimize(const syst_state& tau, antichain& W);
@@ -62,7 +64,7 @@ private:
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
             const local_state& inc);
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
-            const local_state& inc, const bool& is_spawn);
+            const local_state& inc, bool& is_spawn);
 
     /// symbolic pruning
     bool solicit_for_TSE(const syst_state& tau);

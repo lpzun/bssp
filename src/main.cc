@@ -41,7 +41,7 @@ int main(const int argc, const char * const * const argv) {
                 "--target");
 
         BSSP bssp(initl_ts, final_ts, filename);
-        bool is_reachable = true;
+        bool is_reachable = bssp.symbolic_pruning_BWS();
         cout << "======================================================\n";
         cout << "Target";
         if (is_reachable)
@@ -51,7 +51,7 @@ int main(const int argc, const char * const * const argv) {
         cout << "======================================================"
                 << endl;
 
-    } catch (const bws_exception & e) {
+    } catch (const bws_exception& e) {
         e.what();
     } catch (const std::exception& e) {
         std::cerr << e.what() << endl;

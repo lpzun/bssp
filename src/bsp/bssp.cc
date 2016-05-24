@@ -29,6 +29,14 @@ BSSP::~BSSP() {
 }
 
 /**
+ * @brief symbolic pruning backward search
+ * @return bool
+ */
+bool BSSP::symbolic_pruning_BWS() {
+    return this->solicit_for_BWS();
+}
+
+/**
  * @brief extract the system state from input
  * @param state
  * @return system state
@@ -173,10 +181,10 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
     for (auto s = 0; s < thread_state::S; ++s) {
         cout << "shared state " << s << ": (";
         for (const auto& v : s_incoming[s])
-        cout << "x" << v << " + ";
+            cout << "x" << v << " + ";
         cout << ") - (";
         for (const auto& v : s_outgoing[s])
-        cout << "x" << v << " + ";
+            cout << "x" << v << " + ";
         cout << ")";
         cout << "\n";
     }
@@ -184,10 +192,10 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
     for (auto l = 0; l < thread_state::L; ++l) {
         cout << "local state " << l << ": (";
         for (const auto& v : l_incoming[l])
-        cout << "x" << v << " + ";
+            cout << "x" << v << " + ";
         cout << ") - (";
         for (const auto& v : l_outgoing[l])
-        cout << "x" << v << " + ";
+            cout << "x" << v << " + ";
         cout << ")";
         cout << "\n";
     }
@@ -223,7 +231,263 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
  *         true : if
  */
 bool BSSP::solicit_for_BWS() {
+    /// the set of backward discovered system states
+    antichain worklist;
+    /// initialize worklist
+    worklist.emplace_back(final_S);
 
+    /// the set of already-expanded    system states
+    adj_chain expanded(thread_state::S, antichain());
+    /// the set of known uncoverable   system states
+    adj_chain uncoverd(thread_state::S, antichain());
+
+    while (!worklist.empty()) {
+        const auto _tau = worklist.front();
+        worklist.pop_front();
+        //cout << _tau << endl; /// delete-----------
+
+        const auto& s = _tau.get_share();
+
+        /// step 1: if \exists t \in <expanded> such that
+        ///         t <= _tau then discard _tau
+        if (!this->is_minimal(_tau, expanded[s]))
+            continue;
+
+        /// step 2: if \exists t \in <uncoverd> such that
+        ///         t <= _tau then discard _tau
+        if (this->is_uncoverable(_tau, uncoverd[s]))
+            continue;
+
+        /// step 3: compute all cover preimages and handle
+        ///         them one by one
+        const auto& images = this->step(_tau);
+        for (const auto& tau : images) {
+            /// if tau \in upward(T_init), return true;
+            if (this->is_coverable(tau))
+                return true;
+            /// otherwise, push tau into the worklist.
+            worklist.emplace_back(tau);
+        }
+        /// step 4: insert _tau into the expanded states
+        this->minimize(_tau, expanded[s]); /// minimize the explored states
+        expanded[s].emplace_back(_tau); /// insert tau to explored
+    }
+    return false;
+}
+
+/**
+ * @brief compute _tau's cover preimages
+ * @param _tau
+ * @return all cover preimages
+ */
+deque<syst_state> BSSP::step(const syst_state& _tau) {
+    deque<syst_state> images; /// the set of cover preimages
+    for (const auto& r : this->s_incoming[_tau.get_share()]) {
+        const auto& tran = active_R[r];
+        const auto& prev = active_TS[tran.get_src()];
+        const auto& curr = active_TS[tran.get_dst()];
+        switch (tran.get_type()) {
+        case type_trans::BRCT:
+//            cout << "~>";
+            break;
+        case type_trans::SPAW: {
+//            cout << "+>";
+            bool is_updated = false;
+            const auto& Z = this->update_counter(_tau.get_locals(),
+                    curr.get_local(), prev.get_local(), is_updated);
+            /// obtain a cover preimage and store it in the <images>
+            if (is_updated)
+                images.emplace_back(prev.get_share(), Z);
+        }
+            break;
+        default: {
+//            cout << "->";
+            const auto& Z = this->update_counter(_tau.get_locals(),
+                    curr.get_local(), prev.get_local());
+            /// obtain a cover preimage and store it in the <images>
+            images.emplace_back(prev.get_share(), Z);
+        }
+            break;
+        }
+    }
+    return images;
+}
+
+/**
+ * @brief check whether tau is coverable or not
+ * @param tau
+ * @return bool
+ *         true : tau is coverable
+ *         false: otherwise
+ */
+bool BSSP::is_coverable(const syst_state& tau) {
+    if (tau.get_share() == initl_S.get_share()) {
+        if (tau.get_locals().size() == 1
+                && tau.get_locals().begin()->first
+                        == initl_S.get_locals().begin()->first)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief check whether tau is uncoverable or not.
+ *        This function proceeds in two steps:
+ *        step 1:
+ *
+ *        step 2:
+ *
+ * @param tau:
+ * @param W  : the set of uncoverable system states
+ * @return bool
+ *         true :
+ *         false:
+ */
+bool BSSP::is_uncoverable(const syst_state& tau, antichain& W) {
+    for (const auto& w : W) {
+        if (is_covered(w, tau))
+            return true;
+    }
+    if (solicit_for_TSE(tau)) {
+        minimize(tau, W);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief to determine whether tau1 is covered by tau2.
+ *        NOTE: this function assumes that the local parts of tau1 and
+ *        tau2 are ordered.
+ * @param tau1
+ * @param tau2
+ * @return bool
+ *         true : if tau1 <= tau2
+ *         false: otherwise
+ */
+bool BSSP::is_covered(const syst_state& tau1, const syst_state& tau2) {
+    if (tau1.get_share() == tau2.get_share()
+            && tau1.get_locals().size() <= tau2.get_locals().size()) {
+        auto it1 = tau1.get_locals().cbegin();
+        auto it2 = tau2.get_locals().cbegin();
+        while (it1 != tau1.get_locals().cend()) {
+            /// check if it2 reaches to the end
+            if (it2 == tau2.get_locals().cend())
+                return false;
+            /// compare the map's contents
+            if (it1->first == it2->first) {
+                if (it1->second > it2->second)
+                    return false;
+                ++it1, ++it2;
+            } else if (it1->first > it2->first) {
+                ++it2;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief to determine if tau is the minimal state in W
+ * @param tau:
+ * @param W  :
+ * @return bool
+ *         true :
+ *         false:
+ */
+bool BSSP::is_minimal(const syst_state& tau, const antichain& W) {
+    for (const auto& w : W) {
+        if (is_covered(w, tau))
+            return false;
+    }
+    return true;
+}
+
+/**
+ * @brief to determine if tau is the minimal state in W
+ * @param tau:
+ * @param W  :
+ */
+void BSSP::minimize(const syst_state& tau, antichain& W) {
+    auto iw = W.cbegin();
+    while (iw != W.cend()) {
+        if (is_covered(tau, *iw)) {
+            iw = W.erase(iw);
+        } else {
+            ++iw;
+        }
+    }
+}
+
+/**
+ * @brief update counters
+ * @param Z
+ * @param dec
+ * @param inc
+ * @return local states parts
+ */
+ca_locals BSSP::update_counter(const ca_locals &Z, const local_state &dec,
+        const local_state &inc) {
+    if (dec == inc)
+        return Z;
+
+    auto _Z = Z;
+
+    /// decrease counter: this is executed only when there is a local
+    /// state dec in current local part
+    auto idec = _Z.find(dec);
+    if (idec != _Z.end()) {
+        idec->second--;
+        if (idec->second == 0)
+            _Z.erase(idec);
+    }
+
+    auto iinc = _Z.find(inc);
+    if (iinc != _Z.end()) {
+        iinc->second++;
+    } else {
+        _Z.emplace(inc, 1);
+    }
+
+    return _Z;
+}
+
+/**
+ * @brief this is used to update counter for spawn transitions
+ * @param Z
+ * @param dec
+ * @param inc
+ * @param is_updated
+ * @return local states parts
+ */
+ca_locals BSSP::update_counter(const ca_locals &Z, const local_state &dec,
+        const local_state &inc, bool& is_updated) {
+    auto _Z = Z;
+    auto iinc = _Z.find(inc);
+    if (iinc != _Z.end()) {
+        /// decrease counter: this is executed only when there is a local
+        /// state dec in current local part
+        auto idec = _Z.find(dec);
+        if (idec != _Z.end()) {
+            idec->second--;
+            if (idec->second == 0)
+                _Z.erase(idec);
+        }
+        is_updated = true;
+    }
+    return _Z;
+}
+
+/////////////////////////////////////////////////////////////////////////
+/// The following are the definitions for symbolic pruning.
+///
+/////////////////////////////////////////////////////////////////////////
+
+bool BSSP::solicit_for_TSE(const syst_state& tau) {
+    return false;
 }
 
 } /* namespace bssp */
