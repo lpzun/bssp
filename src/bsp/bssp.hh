@@ -45,7 +45,7 @@ private:
     vector<transition> active_R; /// TTS in transitions
     vector<thread_state> active_TS; /// thread states
 
-    vector<incoming> s_incoming; /// incoming edge for shared states
+    vector<incoming> active_LR; /// incoming edge for shared states
 
     void parse_input_TTS(const string& filename, const bool& is_self_loop =
             false);

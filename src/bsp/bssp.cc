@@ -16,7 +16,7 @@ namespace bssp {
  * @param filename
  */
 BSSP::BSSP(const string& s_initl, const string& s_final, const string& filename) :
-        initl_S(), final_S(), active_R(), active_TS() {
+        initl_S(), final_S(), active_R(), active_TS(), active_LR() {
     initl_S = parse_input_SS(s_initl);
     final_S = parse_input_SS(s_final);
     this->parse_input_TTS(filename);
@@ -97,6 +97,8 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
     vector<incoming> l_incoming(thread_state::L, incoming());
     vector<outgoing> l_outgoing(thread_state::L, outgoing());
 
+    active_LR = vector<incoming>(thread_state::S, incoming());
+
     id_transition trans_ID = 0;  /// define unique transition ID
     id_thread_state state_ID = 0;  /// define unique thread state ID
     /// define a map to store the id of thread state
@@ -167,6 +169,8 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
             l_outgoing[l1].emplace_back(trans_ID);
             l_incoming[l2].emplace_back(trans_ID);
 
+            active_LR[s2].emplace_back(trans_ID);
+
             trans_ID++;
         } else {
             throw bws_runtime_error("illegal transition");
@@ -221,8 +225,6 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
             cout << "\n";
         }
     }
-
-    this->s_incoming.swap(s_incoming); /// setup s_incoming
 }
 
 /**
@@ -235,6 +237,7 @@ bool BSSP::solicit_for_BWS() {
     antichain worklist;
     /// initialize worklist
     worklist.emplace_back(final_S);
+    cout << initl_S << final_S << "\n";
 
     /// the set of already-expanded    system states
     adj_chain expanded(thread_state::S, antichain());
@@ -244,7 +247,7 @@ bool BSSP::solicit_for_BWS() {
     while (!worklist.empty()) {
         const auto _tau = worklist.front();
         worklist.pop_front();
-        //cout << _tau << endl; /// delete-----------
+        DBG_STD(cout << _tau << "\n";)
 
         const auto& s = _tau.get_share();
 
@@ -262,6 +265,7 @@ bool BSSP::solicit_for_BWS() {
         ///         them one by one
         const auto& images = this->step(_tau);
         for (const auto& tau : images) {
+            DBG_STD(cout << "  " << tau << "\n";)
             /// if tau \in upward(T_init), return true;
             if (this->is_coverable(tau))
                 return true;
@@ -282,7 +286,7 @@ bool BSSP::solicit_for_BWS() {
  */
 deque<syst_state> BSSP::step(const syst_state& _tau) {
     deque<syst_state> images; /// the set of cover preimages
-    for (const auto& r : this->s_incoming[_tau.get_share()]) {
+    for (const auto& r : this->active_LR[_tau.get_share()]) {
         const auto& tran = active_R[r];
         const auto& prev = active_TS[tran.get_src()];
         const auto& curr = active_TS[tran.get_dst()];
@@ -400,8 +404,10 @@ bool BSSP::is_covered(const syst_state& tau1, const syst_state& tau2) {
  */
 bool BSSP::is_minimal(const syst_state& tau, const antichain& W) {
     for (const auto& w : W) {
-        if (is_covered(w, tau))
+        if (is_covered(w, tau)) {
+            DBG_STD(cout << w << " " << tau << "---------\n";)
             return false;
+        }
     }
     return true;
 }
