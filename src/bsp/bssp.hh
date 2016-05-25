@@ -25,7 +25,7 @@ using incoming = deque<id_transition>;
 using outgoing = deque<id_transition>;
 
 /// Aliasing vector<expr> as vec_expr
-using vec_expr = vector<expr>;
+using vec_expr = expr_vector;
 
 enum class tse {
     reach = 0, unreach = 1, unknown = 2
@@ -39,17 +39,17 @@ public:
     bool symbolic_pruning_BWS();
 
 private:
-    syst_state initl_S;
-    syst_state final_S;
+    thread_state initl_TS;
+    syst_state final_SS;
 
     vector<transition> active_R; /// TTS in transitions
     vector<thread_state> active_TS; /// thread states
-
     vector<incoming> active_LR; /// incoming edge for shared states
 
     void parse_input_TTS(const string& filename, const bool& is_self_loop =
             false);
     syst_state parse_input_SS(const string& state);
+    thread_state parse_input_TS(const string& state);
 
     /// backward search
     bool solicit_for_BWS();
@@ -66,9 +66,25 @@ private:
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
             const local_state& inc, bool& is_spawn);
 
-    /// symbolic pruning
+    /////////////////////////////////////////////////////////////////////////
+    /// The following are the definitions for symbolic pruning.
+    ///
+    /////////////////////////////////////////////////////////////////////////
+
+    /// All expressions, func_decl, etc., appearing in the class must be
+    /// defined in same context; otherwise, segmentation fault happens
+    context ctx;
+
+    expr n_0; /// counter variable for initial local state
+
+    string r_affix;  /// prefix for marking equation variables
+    string s_affix;  /// prefix for local  state equation variables
+    string l_affix;  /// prefix for shared state equation variables
+
+    solver ssolver; /// define the solver as a class member
+
     bool solicit_for_TSE(const syst_state& tau);
-    vec_expr build_TSE(const vector<incoming>& s_incoming,
+    void build_TSE(const vector<incoming>& s_incoming,
             const vector<outgoing>& s_outgoing,
             const vector<incoming>& l_incoming,
             const vector<outgoing>& l_outgoing);

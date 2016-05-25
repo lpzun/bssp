@@ -16,9 +16,13 @@ namespace bssp {
  * @param filename
  */
 BSSP::BSSP(const string& s_initl, const string& s_final, const string& filename) :
-        initl_S(), final_S(), active_R(), active_TS(), active_LR() {
-    initl_S = parse_input_SS(s_initl);
-    final_S = parse_input_SS(s_final);
+        initl_TS(), final_SS(), active_R(), active_TS(), active_LR(), ctx(), ///
+        n_0(ctx.int_const("n0")), r_affix("r"), s_affix("s"), l_affix("l"),  ///
+        ssolver(
+                (tactic(ctx, "simplify") & tactic(ctx, "solve-eqs")
+                        & tactic(ctx, "smt")).mk_solver()) {
+    this->initl_TS = this->parse_input_TS(s_initl);
+    this->final_SS = this->parse_input_SS(s_final);
     this->parse_input_TTS(filename);
 }
 
@@ -37,14 +41,33 @@ bool BSSP::symbolic_pruning_BWS() {
 }
 
 /**
+ * @brief extract the thread state from input
+ * @param state
+ * @return system state
+ */
+thread_state BSSP::parse_input_TS(const string& state) {
+    if (state.find('|') == std::string::npos) { /// str_ts is store in a file
+        ifstream in(state.c_str());
+        if (in.good()) {
+            string content;
+            std::getline(in, content);
+            in.close();
+            return utils::create_thread_state_from_str(content);
+        } else {
+            throw bws_runtime_error(
+                    "parse_input_SS: input state file is unknown!");
+        }
+    }
+    return utils::create_thread_state_from_str(state);
+}
+
+/**
  * @brief extract the system state from input
  * @param state
  * @return system state
  */
 syst_state BSSP::parse_input_SS(const string& state) {
-    if (state.find('|') != std::string::npos) {
-        return utils::create_global_state_from_str(state);
-    } else { /// str_ts is store in a file
+    if (state.find('|') == std::string::npos) { /// str_ts is store in a file
         ifstream in(state.c_str());
         if (in.good()) {
             string content;
@@ -180,7 +203,7 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
 
 #ifndef NDEBUG
     cout << "Initial State: " << initl_S << "\n";
-    cout << "Final   State: " << final_S << "\n";
+    cout << "Final   State: " << final_SS << "\n";
     cout << __func__ << "\n";
     for (auto s = 0; s < thread_state::S; ++s) {
         cout << "shared state " << s << ": (";
@@ -208,6 +231,7 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
 
     if (refer::OPT_PRINT_ADJ || refer::OPT_PRINT_ALL) {
         cout << "The original TTS:" << endl;
+        cout << thread_state::S << " " << thread_state::L << "\n";
         for (const auto& r : this->active_R) {
             cout << active_TS[r.get_src()] << " ";
             switch (r.get_type()) {
@@ -225,6 +249,8 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
             cout << "\n";
         }
     }
+
+    this->build_TSE(s_incoming, s_outgoing, l_incoming, l_outgoing);
 }
 
 /**
@@ -236,8 +262,8 @@ bool BSSP::solicit_for_BWS() {
     /// the set of backward discovered system states
     antichain worklist;
     /// initialize worklist
-    worklist.emplace_back(final_S);
-    cout << initl_S << final_S << "\n";
+    worklist.emplace_back(final_SS);
+    cout << initl_TS << final_SS << "\n";
 
     /// the set of already-expanded    system states
     adj_chain expanded(thread_state::S, antichain());
@@ -325,10 +351,9 @@ deque<syst_state> BSSP::step(const syst_state& _tau) {
  *         false: otherwise
  */
 bool BSSP::is_coverable(const syst_state& tau) {
-    if (tau.get_share() == initl_S.get_share()) {
+    if (tau.get_share() == initl_TS.get_share()) {
         if (tau.get_locals().size() == 1
-                && tau.get_locals().begin()->first
-                        == initl_S.get_locals().begin()->first)
+                && tau.get_locals().begin()->first == initl_TS.get_local())
             return true;
     }
     return false;
@@ -405,7 +430,7 @@ bool BSSP::is_covered(const syst_state& tau1, const syst_state& tau2) {
 bool BSSP::is_minimal(const syst_state& tau, const antichain& W) {
     for (const auto& w : W) {
         if (is_covered(w, tau)) {
-            DBG_STD(cout << w << " " << tau << "---------\n";)
+            DBG_STD(cout << w << " " << tau << "\n";)
             return false;
         }
     }
@@ -492,8 +517,113 @@ ca_locals BSSP::update_counter(const ca_locals &Z, const local_state &dec,
 ///
 /////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief solicit if tau is uncoverable
+ * @param tau
+ * @param phi
+ * @return
+ */
 bool BSSP::solicit_for_TSE(const syst_state& tau) {
     return false;
+}
+
+/**
+ * @brief build thread state equation formula
+ * @param s_incoming
+ * @param s_outgoing
+ * @param l_incoming
+ * @param l_outgoing
+ * @return a set of constraints
+ */
+void BSSP::build_TSE(const vector<incoming>& s_incoming,
+        const vector<outgoing>& s_outgoing, ///
+        const vector<incoming>& l_incoming, ///
+        const vector<outgoing>& l_outgoing) {
+    cout << "I am here..............\n";
+    /// step 1: add n_0 >= 1
+    this->ssolver.add(n_0 >= 1);
+    /// step 2: add x_i >= 0
+    for (size_t i = 0; i < active_R.size(); ++i) {
+        this->ssolver.add(
+                ctx.int_const((r_affix + std::to_string(i)).c_str()) >= 0);
+    }
+
+    /// step 1: add C_L constraints
+    const auto& c_L = this->build_CL(l_incoming, l_outgoing);
+    for (size_t i = 0; i < c_L.size(); ++i) {
+        this->ssolver.add(c_L[i]);
+    }
+    /// step 2: add C_S constraints
+    const auto& c_S = this->build_CS(s_incoming, s_outgoing);
+    for (size_t i = 0; i < c_S.size(); ++i) {
+        this->ssolver.add(c_S[i]);
+    }
+}
+
+/**
+ * @brief build local state constraints
+ * @param l_incoming
+ * @param l_outgoing
+ * @return the vector of constraints
+ */
+vec_expr BSSP::build_CL(const vector<incoming>& l_incoming,
+        const vector<outgoing>& l_outgoing) {
+    vec_expr phi(ctx);
+
+    for (size_l l = 0; l < thread_state::L; ++l) {
+        if (l_incoming.size() == 0 && l_outgoing.size() == 0) {
+            cout << "local state " << l << "\n";
+            continue;
+        }
+        cout << "local state " << l << "\n";
+        /// declare left-hand  side
+        expr lhs(l == initl_TS.get_local() ? n_0 : ctx.int_val(0));
+        /// declare right-hand side
+        expr rhs(ctx.int_const((l_affix + std::to_string(l)).c_str()));
+
+        /// setup left-hand  side
+        for (const auto& inc : l_incoming[l])
+            lhs = lhs + ctx.int_const((r_affix + std::to_string(inc)).c_str());
+        /// setup right-hand side
+        for (const auto& out : l_outgoing[l])
+            rhs = rhs + ctx.int_const((r_affix + std::to_string(out)).c_str());
+
+        phi.push_back(lhs >= rhs);
+    }
+    return phi;
+}
+
+/**
+ * @brief build shared state constraints
+ * @param s_incoming
+ * @param s_outgoing
+ * @return the vector of constraints
+ */
+vec_expr BSSP::build_CS(const vector<incoming>& s_incoming,
+        const vector<outgoing>& s_outgoing) {
+    vec_expr phi(ctx);
+
+    for (size_s s = 0; s < thread_state::S; ++s) {
+        if (s_incoming.size() == 0 && s_outgoing.size() == 0) {
+            cout << "shared state " << s << "\n";
+            continue;
+        }
+        cout << "shared state " << s << "\n";
+        /// declare left-hand  side
+        expr lhs(s == initl_TS.get_share() ? ctx.int_val(1) : ctx.int_val(0));
+        /// declare right-hand side
+        expr rhs(ctx.int_const((s_affix + std::to_string(s)).c_str()));
+
+        /// setup left-hand  side
+        for (const auto& inc : s_incoming[s])
+            lhs = lhs + ctx.int_const((r_affix + std::to_string(inc)).c_str());
+        /// setup right-hand side
+        for (const auto& out : s_outgoing[s])
+            rhs = rhs + ctx.int_const((r_affix + std::to_string(out)).c_str());
+
+        phi.push_back(lhs == rhs);
+    }
+    return phi;
 }
 
 } /* namespace bssp */
