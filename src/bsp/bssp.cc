@@ -38,6 +38,7 @@ BSSP::~BSSP() {
  */
 bool BSSP::symbolic_pruning_BWS() {
     return this->solicit_for_BWS();
+    //return !this->solicit_for_TSE(final_SS);
 }
 
 /**
@@ -263,7 +264,7 @@ bool BSSP::solicit_for_BWS() {
     antichain worklist;
     /// initialize worklist
     worklist.emplace_back(final_SS);
-    cout << initl_TS << final_SS << "\n";
+    cout << initl_TS << " " << final_SS << "\n";
 
     /// the set of already-expanded    system states
     adj_chain expanded(thread_state::S, antichain());
@@ -377,10 +378,11 @@ bool BSSP::is_uncoverable(const syst_state& tau, antichain& W) {
         if (is_covered(w, tau))
             return true;
     }
-    if (solicit_for_TSE(tau)) {
-        minimize(tau, W);
-        return true;
-    }
+//    if (solicit_for_TSE(tau)) {
+//        cout << tau << " is uncoverable...\n";
+//        this->minimize(tau, W);
+//        return true;
+//    }
     return false;
 }
 
@@ -520,11 +522,39 @@ ca_locals BSSP::update_counter(const ca_locals &Z, const local_state &dec,
 /**
  * @brief solicit if tau is uncoverable
  * @param tau
- * @param phi
- * @return
+ * @return bool
+ *         true : means unsat, uncoverable
+ *         false: means
  */
 bool BSSP::solicit_for_TSE(const syst_state& tau) {
-    return false;
+    vec_expr assumption(ctx);
+
+    for (size_l l = 0; l < thread_state::L; ++l) {
+        auto ifind = tau.get_locals().find(l);
+        if (ifind != tau.get_locals().end())
+            assumption.push_back(
+                    ctx.int_const((l_affix + std::to_string(l)).c_str())
+                            == ifind->second);
+        else
+            assumption.push_back(
+                    ctx.int_const((l_affix + std::to_string(l)).c_str()) == 0);
+    }
+
+    for (size_l s = 0; s < thread_state::S; ++s) {
+        if (s == tau.get_share())
+            assumption.push_back(
+                    ctx.int_const((s_affix + std::to_string(s)).c_str()) == 1);
+        else
+            assumption.push_back(
+                    ctx.int_const((s_affix + std::to_string(s)).c_str()) == 0);
+    }
+
+    switch (ssolver.check(assumption)) {
+    case unsat:
+        return true;
+    default:
+        return false;
+    }
 }
 
 /**
@@ -539,7 +569,6 @@ void BSSP::build_TSE(const vector<incoming>& s_incoming,
         const vector<outgoing>& s_outgoing, ///
         const vector<incoming>& l_incoming, ///
         const vector<outgoing>& l_outgoing) {
-    cout << "I am here..............\n";
     /// step 1: add n_0 >= 1
     this->ssolver.add(n_0 >= 1);
     /// step 2: add x_i >= 0
@@ -572,10 +601,8 @@ vec_expr BSSP::build_CL(const vector<incoming>& l_incoming,
 
     for (size_l l = 0; l < thread_state::L; ++l) {
         if (l_incoming.size() == 0 && l_outgoing.size() == 0) {
-            cout << "local state " << l << "\n";
             continue;
         }
-        cout << "local state " << l << "\n";
         /// declare left-hand  side
         expr lhs(l == initl_TS.get_local() ? n_0 : ctx.int_val(0));
         /// declare right-hand side
@@ -605,10 +632,8 @@ vec_expr BSSP::build_CS(const vector<incoming>& s_incoming,
 
     for (size_s s = 0; s < thread_state::S; ++s) {
         if (s_incoming.size() == 0 && s_outgoing.size() == 0) {
-            cout << "shared state " << s << "\n";
             continue;
         }
-        cout << "shared state " << s << "\n";
         /// declare left-hand  side
         expr lhs(s == initl_TS.get_share() ? ctx.int_val(1) : ctx.int_val(0));
         /// declare right-hand side
