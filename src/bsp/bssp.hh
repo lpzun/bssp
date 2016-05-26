@@ -83,6 +83,9 @@ private:
 
     solver ssolver; /// define the solver as a class member
 
+    vector<bool> s_encoding;
+    vector<bool> l_encoding;
+
     bool solicit_for_TSE(const syst_state& tau);
     void build_TSE(const vector<incoming>& s_incoming,
             const vector<outgoing>& s_outgoing,

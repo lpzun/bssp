@@ -167,8 +167,6 @@ public:
     inline global_state(const thread_state& t);
     inline global_state(const thread_state& t, const size_p& n);
     inline global_state(const shared_state& share, const ca_locals& locals);
-    inline global_state(const shared_state& share, const ca_locals& locals,
-            shared_ptr<const global_state> pi);
     inline global_state(const global_state& s);
 
     ~global_state() {
@@ -180,22 +178,13 @@ public:
         return locals;
     }
 
-    inline const shared_ptr<const global_state>& get_pi() const {
-        return pi;
-    }
-
     inline shared_state get_share() const {
         return share;
-    }
-
-    inline void set_pi(const shared_ptr<const global_state>& pi) {
-        this->pi = pi;
     }
 
 private:
     shared_state share;
     ca_locals locals;
-    shared_ptr<const global_state> pi;
 };
 
 /**
@@ -204,7 +193,7 @@ private:
  *        locals = empty map
  */
 inline global_state::global_state() :
-        share(0), locals(ca_locals()), pi(nullptr) {
+        share(0), locals(ca_locals()) {
 }
 
 /**
@@ -212,7 +201,7 @@ inline global_state::global_state() :
  * @param t
  */
 inline global_state::global_state(const thread_state& t) :
-        share(t.get_share()), locals(ca_locals()), pi(nullptr) {
+        share(t.get_share()), locals(ca_locals()) {
     locals.emplace(t.get_local(), 1);
 }
 
@@ -222,7 +211,7 @@ inline global_state::global_state(const thread_state& t) :
  * @param n
  */
 inline global_state::global_state(const thread_state& t, const size_p& n) :
-        share(t.get_share()), locals(ca_locals()), pi(nullptr) {
+        share(t.get_share()), locals(ca_locals()) {
     locals.emplace(t.get_local(), n);
 }
 
@@ -233,22 +222,15 @@ inline global_state::global_state(const thread_state& t, const size_p& n) :
  */
 inline global_state::global_state(const shared_state& share,
         const ca_locals& locals) :
-        share(share), locals(locals), pi(nullptr) {
+        share(share), locals(locals) {
 }
 
 /**
- * @brief constructor with a shared state, local states and pi
- * @param share : shared state
- * @param locals: local states represented in counter abstraction form
- * @param pi	: the father of current global state
+ * @brief constructor with a global state
+ * @param s
  */
-inline global_state::global_state(const shared_state& share,
-        const ca_locals& locals, shared_ptr<const global_state> pi) :
-        share(share), locals(locals), pi(pi) {
-}
-
 inline global_state::global_state(const global_state& s) :
-        share(s.get_share()), locals(s.get_locals()), pi(s.get_pi()) {
+        share(s.get_share()), locals(s.get_locals()) {
 
 }
 
@@ -320,7 +302,7 @@ inline bool operator==(const global_state& s1, const global_state& s2) {
             while (is1 != s1.get_locals().end()) {
                 if ((is1->first != is2->first) || (is1->second != is2->second))
                     return false;
-                is1++, is2++;
+                ++is1, ++is2;
             }
             return true;
         }
