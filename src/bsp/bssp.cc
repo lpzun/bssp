@@ -378,11 +378,11 @@ bool BSSP::is_uncoverable(const syst_state& tau, antichain& W) {
         if (is_covered(w, tau))
             return true;
     }
-//    if (solicit_for_TSE(tau)) {
-//        cout << tau << " is uncoverable...\n";
-//        this->minimize(tau, W);
-//        return true;
-//    }
+    if (solicit_for_TSE(tau)) {
+        cout << tau << " is uncoverable...\n";
+        this->minimize(tau, W);
+        return true;
+    }
     return false;
 }
 
