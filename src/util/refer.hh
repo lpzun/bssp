@@ -19,7 +19,7 @@ public:
     static bool OPT_PRINT_CMD;
     static bool OPT_PRINT_ADJ;
 
-    static bool OPT_INPUT_TTS;
+    // static bool OPT_INPUT_TTS;
 
     /// global variable for elapsed time
     static clock_t ELAPSED_TIME;

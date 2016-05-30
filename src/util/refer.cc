@@ -16,7 +16,7 @@ refer::refer() {
 refer::~refer() {
 
 }
-bool refer::OPT_INPUT_TTS = false;
+// bool refer::OPT_INPUT_TTS = false;
 
 bool refer::OPT_PRINT_ADJ = false;
 bool refer::OPT_PRINT_CMD = false;

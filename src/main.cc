@@ -26,8 +26,8 @@ int main(const int argc, const char * const * const argv) {
 
         refer::OPT_PRINT_ADJ = cmd.arg_bool(cmd_line::prob_inst_opts(),
                 "--adj-list");
-        refer::OPT_INPUT_TTS = cmd.arg_bool(cmd_line::prob_inst_opts(),
-                "--input-tts");
+//        refer::OPT_INPUT_TTS = cmd.arg_bool(cmd_line::prob_inst_opts(),
+//                "--input-tts");
 
         refer::OPT_PRINT_CMD = cmd.arg_bool(cmd_line::other_opts(),
                 "--cmd-line");
