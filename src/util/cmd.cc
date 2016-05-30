@@ -230,7 +230,7 @@ void cmd_line::create_argument_list() {
     this->add_option(prob_inst_opts(), "-f", "--input-file",
             "boolean program or thread transition system", "X");
 
-    this->add_switch(prob_inst_opts(), "-t", "--input-tts", "input is tts");
+    /// this->add_switch(prob_inst_opts(), "-t", "--input-tts", "input is tts");
     this->add_option(prob_inst_opts(), "-a", "--target",
             "a target thread state (e.g., 0|0)", "0|0");
     this->add_option(prob_inst_opts(), "-i", "--initial",
@@ -255,19 +255,19 @@ void cmd_line::create_argument_list() {
 string cmd_line::create_version_info() {
     string info = ""; ///
     info ///
-    .append("* *       _/_/_/         _/_/_/_/        _/_/_/_/   * *\n") ///
-    .append("* *     _/    _/        _/     _/       _/          * *\n") ///
-    .append("* *    _/_/_/_/        _/_/_/_/        _/_/_/_/     * *\n") ///
-    .append("* *   _/    _/        _/     _/             _/      * *\n") ///
-    .append("* *  _/    _/        _/_/_/_/        _/_/_/_/  " + VERSION ///
+    .append("* *      _/_/_/_/     _/_/_/_/    _/_/_/_/    _/_/_/_/  * *\n") ///
+    .append("* *     _/     _/    _/          _/          _/     _/  * *\n") ///
+    .append("* *    _/_/_/_/     _/_/_/_/    _/_/_/_/    _/_/_/_/    * *\n") ///
+    .append("* *   _/     _/          _/          _/    _/     _/    * *\n") ///
+    .append("* *  _/_/_/_/     _/_/_/_/    _/_/_/_/    _/_/_/_/ " + VERSION ///
             + " * *\n") ///
-    .append("-------------------------------------------------------\n") ///
-    .append("* *      Unbounded-Thread Program Verification      * *\n") ///
-    .append("* *              via Backward Search                * *\n") ///
-    .append("* *       Peizun Liu @ Thomas Wahl's Group          * *\n") ///
-    .append("* *     Northeastern University, United States      * *\n") ///
-    .append("* *                        Build Time @ ").append(
+    .append("-----------------------------------------------------------\n") ///
+    .append("* *     Fast Backward Unbounded-Thread Coverability     * *\n") ///
+    .append("* *           Analysis via Symbolic Pruning             * *\n") ///
+    .append("* *          Peizun Liu @ Thomas Wahl's Group           * *\n") ///
+    .append("* *       Northeastern University, United States        * *\n") ///
+    .append("* *                            Build Time @ ").append(
     __DATE__).append(" * *\n").append(
-            "-------------------------------------------------------\n");
+            "-----------------------------------------------------------\n");
     return info;
 }

@@ -49,7 +49,17 @@ private:
     vector<incoming> active_LR; /// incoming edge for shared states
 
     /// the set of known uncoverable   system states
-    adj_chain uncovered;
+    adj_chain uncoverd;
+
+    /// the set of already-expanded    system states
+    adj_chain expanded;
+
+    /// the set of backward discovered system states
+    antichain worklist;
+
+    /// the set of discovered system states after symbolic pruning
+    /// This is only used in the multithreading BSSP
+    antichain votelist;
 
     void parse_input_TTS(const string& filename, const bool& is_self_loop =
             false);
@@ -64,9 +74,9 @@ private:
     deque<syst_state> step(const syst_state& _tau);
 
     bool is_coverable(const syst_state& tau);
-    bool is_uncoverable(const syst_state& tau, antichain& W);
+    bool is_uncoverable(const syst_state& tau, const shared_state& s);
     bool is_covered(const syst_state& tau1, const syst_state& tau2);
-    bool is_minimal(const syst_state& tau, const antichain& W);
+    bool is_minimal(const syst_state& tau, const shared_state& s);
     void minimize(const syst_state& tau, antichain& W);
 
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
@@ -94,6 +104,8 @@ private:
     vector<bool> s_encoding;
     vector<bool> l_encoding;
 
+    bool single_threaded_SP(const syst_state& tau, const shared_state& s);
+    void multi_threaded_SP();
     bool solicit_for_TSE(const syst_state& tau);
     void build_TSE(const vector<incoming>& s_incoming,
             const vector<outgoing>& s_outgoing,

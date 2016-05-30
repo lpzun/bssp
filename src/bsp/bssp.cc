@@ -16,10 +16,13 @@ namespace bssp {
  * @param filename
  */
 BSSP::BSSP(const string& s_initl, const string& s_final, const string& filename) :
-        initl_TS(), final_SS(), active_R(), active_TS(), active_LR(), uncovered(), ctx(), n_0(
-                ctx.int_const("n0")), r_affix("r"), s_affix("s"), l_affix("l"), ssolver(
+        initl_TS(), final_SS(), active_R(), active_TS(), active_LR(), ///
+        uncoverd(), expanded(), worklist(), votelist(),               ///
+        ctx(), n_0(ctx.int_const("n0")), r_affix("r"), s_affix("s"),  ///
+        l_affix("l"), ssolver(
                 (tactic(ctx, "simplify") & tactic(ctx, "solve-eqs")
-                        & tactic(ctx, "smt")).mk_solver()), s_encoding(), l_encoding() {
+                        & tactic(ctx, "smt")).mk_solver()),          ///
+        s_encoding(), l_encoding() {
     this->initl_TS = this->parse_input_TS(s_initl);
     this->final_SS = this->parse_input_SS(s_final);
     this->parse_input_TTS(filename);
@@ -37,7 +40,6 @@ BSSP::~BSSP() {
  */
 bool BSSP::symbolic_pruning_BWS() {
     return this->single_threaded_BSSP();
-    //return !this->solicit_for_TSE(final_SS);
 }
 
 /**
@@ -256,22 +258,20 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
 }
 
 /**
- * @brief the single threaded BWS with symbolic pruning
+ * @brief the single-threading BWS with symbolic pruning
  * @return bool
  *         true : if final state is coverable
  *         false: otherwise
  */
 bool BSSP::single_threaded_BSSP() {
-    /// the set of backward discovered system states
-    antichain worklist;
     /// initialize worklist
     worklist.emplace_back(final_SS);
     cout << initl_TS << " " << final_SS << "\n";
 
     /// the set of already-expanded    system states
-    adj_chain expanded(thread_state::S, antichain());
+    expanded = adj_chain(thread_state::S, antichain());
     /// the set of known uncoverable   system states
-    uncovered = adj_chain(thread_state::S, antichain());
+    uncoverd = adj_chain(thread_state::S, antichain());
 
     while (!worklist.empty()) {
         const auto _tau = worklist.front();
@@ -282,15 +282,19 @@ bool BSSP::single_threaded_BSSP() {
 
         /// step 1: if \exists t \in <expanded> such that
         ///         t <= _tau then discard _tau
-        if (!this->is_minimal(_tau, expanded[s]))
+        if (!this->is_minimal(_tau, s))
             continue;
 
         /// step 2: if \exists t \in <uncoverd> such that
         ///         t <= _tau then discard _tau
-        if (this->is_uncoverable(_tau, uncovered[s]))
+        if (this->is_uncoverable(_tau, s))
             continue;
 
-        /// step 3: compute all cover preimages and handle
+        /// step 3: if _tau is uncoverable via symbolic pruning
+        if (this->single_threaded_SP(_tau, s))
+            continue;
+
+        /// step 4: compute all cover preimages and handle
         ///         them one by one
         const auto& images = this->step(_tau);
         for (const auto& tau : images) {
@@ -301,64 +305,43 @@ bool BSSP::single_threaded_BSSP() {
             /// otherwise, push tau into the worklist.
             worklist.emplace_back(tau);
         }
-        /// step 4: insert _tau into the expanded states
-        this->minimize(_tau, expanded[s]); /// minimize the explored states
-        expanded[s].emplace_back(_tau); /// insert tau to explored
+        /// step 5: insert _tau into the expanded states
+        ///      (1) minimize the set of expanded states
+        this->minimize(_tau, expanded[s]);
+        ///      (2) append tau to the set of expanded states
+        expanded[s].emplace_back(_tau);
     }
     return false;
 }
 
 /**
- * @brief the single threaded BWS with symbolic pruning
+ * @brief the multithreading BWS with symbolic pruning
  * @return bool
  *         true : if final state is coverable
  *         false: otherwise
  */
 bool BSSP::multi_threaded_BSSP() {
     /// the set of backward discovered system states
-    antichain worklist;
     /// initialize worklist
-    worklist.emplace_back(final_SS);
+    votelist.emplace_back(final_SS);
     cout << initl_TS << " " << final_SS << "\n";
 
     /// the set of already-expanded    system states
-    adj_chain expanded(thread_state::S, antichain());
+    expanded = adj_chain(thread_state::S, antichain());
     /// the set of known uncoverable   system states
-    uncovered = adj_chain(thread_state::S, antichain());
+    uncoverd = adj_chain(thread_state::S, antichain());
 
-    while (!worklist.empty()) {
-        const auto _tau = worklist.front();
-        worklist.pop_front();
-        DBG_STD(cout << _tau << "\n";)
+    /// spawn a thread upon a member function
+    /// Here I use a lambda expression. This is a clean
+    /// and nice solution, if it works
+//    std::thread sp([this] { multi_threaded_SP(); } );
+//    sp.join();
 
-        const auto& s = _tau.get_share();
-
-        /// step 1: if \exists t \in <expanded> such that
-        ///         t <= _tau then discard _tau
-        if (!this->is_minimal(_tau, expanded[s]))
-            continue;
-
-        /// step 2: if \exists t \in <uncoverd> such that
-        ///         t <= _tau then discard _tau
-        if (this->is_uncoverable(_tau, uncovered[s]))
-            continue;
-
-        /// step 3: compute all cover preimages and handle
-        ///         them one by one
-        const auto& images = this->step(_tau);
-        for (const auto& tau : images) {
-            DBG_STD(cout << "  " << tau << "\n";)
-            /// if tau \in upward(T_init), return true;
-            if (is_coverable(tau))
-                return true;
-            /// otherwise, push tau into the worklist.
-            worklist.emplace_back(tau);
-        }
-        /// step 4: insert _tau into the expanded states
-        this->minimize(_tau, expanded[s]); /// minimize the explored states
-        expanded[s].emplace_back(_tau); /// insert tau to explored
-    }
     return false;
+}
+
+void BSSP::multi_threaded_SP(){
+
 }
 
 /**
@@ -417,34 +400,35 @@ bool BSSP::is_coverable(const syst_state& tau) {
 
 /**
  * @brief check whether tau is uncoverable or not.
- *        This function proceeds in two steps:
- *        step 1:
- *
- *        step 2:
- *
  * @param tau:
  * @param W  : the set of uncoverable system states
  * @return bool
- *         true :
- *         false:
+ *         true : if exists w such that w <= tau
+ *         false: otherwise
  */
-bool BSSP::is_uncoverable(const syst_state& tau, antichain& W) {
-    for (const auto& w : W) {
-        if (is_covered(w, tau)) {
-            //cout << "I am here " << w << " <= " << tau << "\n";
+bool BSSP::is_uncoverable(const syst_state& tau, const shared_state& s) {
+    for (const auto& w : uncoverd[s]) {
+        if (is_covered(w, tau))
             return true;
-        }
-    }
-    // cout << tau.get_share() << " " << W.size() << "\n";
-    if (solicit_for_TSE(tau)) {
-        //cout << tau << " is uncoverable...\n";
-        this->minimize(tau, W);
-        W.emplace_back(tau);
-        return true;
     }
     return false;
 }
 
+/**
+ * @brief symbolic pruning
+ * @param tau
+ * @param W
+ * @return bool
+ *
+ */
+bool BSSP::single_threaded_SP(const syst_state& tau, const shared_state& s) {
+    if (solicit_for_TSE(tau)) {
+        minimize(tau, uncoverd[s]);
+        uncoverd[s].emplace_back(tau);
+        return true;
+    }
+    return false;
+}
 /**
  * @brief to determine whether tau1 is covered by tau2.
  *        NOTE: this function assumes that the local parts of tau1 and
@@ -488,8 +472,8 @@ bool BSSP::is_covered(const syst_state& tau1, const syst_state& tau2) {
  *         true :
  *         false:
  */
-bool BSSP::is_minimal(const syst_state& tau, const antichain& W) {
-    for (const auto& w : W) {
+bool BSSP::is_minimal(const syst_state& tau, const shared_state& s) {
+    for (const auto& w : expanded[s]) {
         if (is_covered(w, tau)) {
             DBG_STD(cout << w << " " << tau << "\n";)
             return false;
