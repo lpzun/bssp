@@ -8,6 +8,8 @@
 #ifndef BSP_BSSP_HH_
 #define BSP_BSSP_HH_
 
+#include <thread>
+
 #include "z3++.h"
 #include "../util/utilities.hh"
 
@@ -46,13 +48,19 @@ private:
     vector<thread_state> active_TS; /// thread states
     vector<incoming> active_LR; /// incoming edge for shared states
 
+    /// the set of known uncoverable   system states
+    adj_chain uncovered;
+
     void parse_input_TTS(const string& filename, const bool& is_self_loop =
             false);
     syst_state parse_input_SS(const string& state);
     thread_state parse_input_TS(const string& state);
 
     /// backward search
-    bool solicit_for_BWS();
+    bool single_threaded_BSSP();
+    bool multi_threaded_BSSP();
+
+    /// image computation
     deque<syst_state> step(const syst_state& _tau);
 
     bool is_coverable(const syst_state& tau);
