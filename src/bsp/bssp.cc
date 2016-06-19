@@ -340,7 +340,7 @@ bool BSSP::multi_threaded_BSSP() {
     return false;
 }
 
-void BSSP::multi_threaded_SP(){
+void BSSP::multi_threaded_SP() {
 
 }
 
@@ -356,11 +356,10 @@ deque<syst_state> BSSP::step(const syst_state& _tau) {
         const auto& prev = active_TS[tran.get_src()];
         const auto& curr = active_TS[tran.get_dst()];
         switch (tran.get_type()) {
-        case type_trans::BRCT:
-//            cout << "~>";
+        case type_trans::BRCT: {
+        }
             break;
         case type_trans::SPAW: {
-//            cout << "+>";
             bool is_updated = false;
             const auto& Z = this->update_counter(_tau.get_locals(),
                     curr.get_local(), prev.get_local(), is_updated);
@@ -370,7 +369,6 @@ deque<syst_state> BSSP::step(const syst_state& _tau) {
         }
             break;
         default: {
-//            cout << "->";
             const auto& Z = this->update_counter(_tau.get_locals(),
                     curr.get_local(), prev.get_local());
             /// obtain a cover preimage and store it in the <images>

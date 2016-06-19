@@ -114,6 +114,13 @@ void iparser::remove_comments(istream& in, ostream& out,
     }
 }
 
+/**
+ *
+ * @param in
+ * @param line
+ * @param eol
+ * @return
+ */
 bool iparser::getline(istream& in, string& line, const char& eol) {
     char c = 0;
     while (in.get(c) ? c != eol : false)
