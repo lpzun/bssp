@@ -282,12 +282,12 @@ bool BSSP::single_threaded_BSSP() {
 
         /// step 1: if \exists t \in <expanded> such that
         ///         t <= _tau then discard _tau
-        if (!this->is_minimal(_tau, s))
+        if (!this->is_minimal(_tau.get_locals(), s))
             continue;
 
         /// step 2: if \exists t \in <uncoverd> such that
         ///         t <= _tau then discard _tau
-        if (this->is_uncoverable(_tau, s))
+        if (this->is_uncoverable(_tau.get_locals(), s))
             continue;
 
         /// step 3: if _tau is uncoverable via symbolic pruning
@@ -307,9 +307,9 @@ bool BSSP::single_threaded_BSSP() {
         }
         /// step 5: insert _tau into the expanded states
         ///      (1) minimize the set of expanded states
-        this->minimize(_tau, expanded[s]);
+        this->minimize(_tau.get_locals(), s);
         ///      (2) append tau to the set of expanded states
-        expanded[s].emplace_back(_tau);
+        expanded[s].emplace_back(_tau.get_locals());
     }
     return false;
 }
@@ -396,6 +396,22 @@ bool BSSP::is_coverable(const syst_state& tau) {
     return false;
 }
 
+///**
+// * @brief check whether tau is uncoverable or not.
+// * @param tau:
+// * @param W  : the set of uncoverable system states
+// * @return bool
+// *         true : if exists w such that w <= tau
+// *         false: otherwise
+// */
+//bool BSSP::is_uncoverable(const syst_state& tau, const shared_state& s) {
+//    for (const auto& w : uncoverd[s]) {
+//        if (is_covered(w, tau))
+//            return true;
+//    }
+//    return false;
+//}
+
 /**
  * @brief check whether tau is uncoverable or not.
  * @param tau:
@@ -404,9 +420,9 @@ bool BSSP::is_coverable(const syst_state& tau) {
  *         true : if exists w such that w <= tau
  *         false: otherwise
  */
-bool BSSP::is_uncoverable(const syst_state& tau, const shared_state& s) {
+bool BSSP::is_uncoverable(const ca_locals& Z, const shared_state& s) {
     for (const auto& w : uncoverd[s]) {
-        if (is_covered(w, tau))
+        if (is_covered(w, Z))
             return true;
     }
     return false;
@@ -421,46 +437,115 @@ bool BSSP::is_uncoverable(const syst_state& tau, const shared_state& s) {
  */
 bool BSSP::single_threaded_SP(const syst_state& tau, const shared_state& s) {
     if (solicit_for_TSE(tau)) {
-        minimize(tau, uncoverd[s]);
-        uncoverd[s].emplace_back(tau);
+        minimize(tau.get_locals(), s);
+        uncoverd[s].emplace_back(tau.get_locals());
         return true;
     }
     return false;
 }
+
+///**
+// * @brief to determine whether tau1 is covered by tau2.
+// *        NOTE: this function assumes that the local parts of tau1 and
+// *        tau2 are ordered.
+// * @param tau1
+// * @param tau2
+// * @return bool
+// *         true : if tau1 <= tau2
+// *         false: otherwise
+// */
+//bool BSSP::is_covered(const syst_state& tau1, const syst_state& tau2) {
+//    if (tau1.get_share() == tau2.get_share()
+//            && tau1.get_locals().size() <= tau2.get_locals().size()) {
+//        auto it1 = tau1.get_locals().cbegin();
+//        auto it2 = tau2.get_locals().cbegin();
+//        while (it1 != tau1.get_locals().cend()) {
+//            /// check if it2 reaches to the end
+//            if (it2 == tau2.get_locals().cend())
+//                return false;
+//            /// compare the map's contents
+//            if (it1->first == it2->first) {
+//                if (it1->second > it2->second)
+//                    return false;
+//                ++it1, ++it2;
+//            } else if (it1->first > it2->first) {
+//                ++it2;
+//            } else {
+//                return false;
+//            }
+//        }
+//        return true;
+//    }
+//    return false;
+//}
+
 /**
- * @brief to determine whether tau1 is covered by tau2.
- *        NOTE: this function assumes that the local parts of tau1 and
- *        tau2 are ordered.
- * @param tau1
- * @param tau2
+ * To determine whether counter-abstracted local state part Z1 is covered
+ * by counter-abstracted local state tau2.
+ *        NOTE: this function assumes that both Z1 and Z2 are ordered.
+ * @param Z1
+ * @param Z1
  * @return bool
  *         true : if tau1 <= tau2
  *         false: otherwise
  */
-bool BSSP::is_covered(const syst_state& tau1, const syst_state& tau2) {
-    if (tau1.get_share() == tau2.get_share()
-            && tau1.get_locals().size() <= tau2.get_locals().size()) {
-        auto it1 = tau1.get_locals().cbegin();
-        auto it2 = tau2.get_locals().cbegin();
-        while (it1 != tau1.get_locals().cend()) {
-            /// check if it2 reaches to the end
-            if (it2 == tau2.get_locals().cend())
+bool BSSP::is_covered(const ca_locals& Z1, const ca_locals& Z2) {
+    if (Z1.size() > Z2.size())
+        return false;
+
+    auto it1 = Z1.cbegin();
+    auto it2 = Z2.cbegin();
+    while (it1 != Z1.cend()) {
+        /// check if it2 reaches to the end
+        if (it2 == Z2.cend())
+            return false;
+        /// compare the map's contents
+        if (it1->first == it2->first) {
+            if (it1->second > it2->second)
                 return false;
-            /// compare the map's contents
-            if (it1->first == it2->first) {
-                if (it1->second > it2->second)
-                    return false;
-                ++it1, ++it2;
-            } else if (it1->first > it2->first) {
-                ++it2;
-            } else {
-                return false;
-            }
+            ++it1, ++it2;
+        } else if (it1->first > it2->first) {
+            ++it2;
+        } else {
+            return false;
         }
-        return true;
     }
-    return false;
+    return true;
 }
+
+///**
+// * @brief to determine if tau is the minimal state in W
+// * @param tau:
+// * @param W  :
+// * @return bool
+// *         true :
+// *         false:
+// */
+//bool BSSP::is_minimal(const syst_state& tau, const shared_state& s) {
+//    for (const auto& w : expanded[s]) {
+//        if (is_covered(w, tau)) {
+//            DBG_STD(cout << w << " " << tau << "\n";)
+//            return false;
+//        }
+//    }
+//    return true;
+//}
+//
+///**
+// * @brief to determine if tau is the minimal state in W
+// * @param tau:
+// * @param W  :
+// */
+//void BSSP::minimize(const syst_state& tau, antichain& W) {
+//    auto iw = W.begin();
+//    while (iw != W.end()) {
+//        if (is_covered(tau, *iw)) {
+//            iw = W.erase(iw);
+//        } else {
+//            ++iw;
+//        }
+//    }
+//}
 
 /**
  * @brief to determine if tau is the minimal state in W
@@ -470,9 +555,9 @@ bool BSSP::is_covered(const syst_state& tau1, const syst_state& tau2) {
  *         true :
  *         false:
  */
-bool BSSP::is_minimal(const syst_state& tau, const shared_state& s) {
+bool BSSP::is_minimal(const ca_locals& Z, const shared_state& s) {
     for (const auto& w : expanded[s]) {
-        if (is_covered(w, tau)) {
+        if (is_covered(w, Z)) {
             DBG_STD(cout << w << " " << tau << "\n";)
             return false;
         }
@@ -485,11 +570,11 @@ bool BSSP::is_minimal(const syst_state& tau, const shared_state& s) {
  * @param tau:
  * @param W  :
  */
-void BSSP::minimize(const syst_state& tau, antichain& W) {
-    auto iw = W.begin();
-    while (iw != W.end()) {
-        if (is_covered(tau, *iw)) {
-            iw = W.erase(iw);
+void BSSP::minimize(const ca_locals& Z, const shared_state& s) {
+    auto iw = expanded[s].begin();
+    while (iw != expanded[s].end()) {
+        if (is_covered(Z, *iw)) {
+            iw = expanded[s].erase(iw);
         } else {
             ++iw;
         }

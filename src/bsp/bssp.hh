@@ -18,7 +18,8 @@ using namespace z3;
 namespace bssp {
 
 using syst_state = global_state;
-using antichain = deque<syst_state>;
+//using antichain = deque<syst_state>;
+using antichain = deque<ca_locals>;
 using adj_chain = vector<antichain>;
 
 /// store all incoming transitions w.r.t. a specific shared/local state
@@ -55,11 +56,11 @@ private:
     adj_chain expanded;
 
     /// the set of backward discovered system states
-    antichain worklist;
+    deque<global_state> worklist;
 
     /// the set of discovered system states after symbolic pruning
     /// This is only used in the multithreading BSSP
-    antichain votelist;
+    deque<global_state> votelist;
 
     void parse_input_TTS(const string& filename, const bool& is_self_loop =
             false);
@@ -74,10 +75,15 @@ private:
     deque<syst_state> step(const syst_state& _tau);
 
     bool is_coverable(const syst_state& tau);
-    bool is_uncoverable(const syst_state& tau, const shared_state& s);
-    bool is_covered(const syst_state& tau1, const syst_state& tau2);
-    bool is_minimal(const syst_state& tau, const shared_state& s);
-    void minimize(const syst_state& tau, antichain& W);
+//    bool is_uncoverable(const syst_state& tau, const shared_state& s);
+//    bool is_covered(const syst_state& tau1, const syst_state& tau2);
+//    bool is_minimal(const syst_state& tau, const shared_state& s);
+//    void minimize(const syst_state& tau, antichain& W);
+
+    bool is_uncoverable(const ca_locals& Z, const shared_state& s);
+    bool is_covered(const ca_locals& Z1, const ca_locals& Z2);
+    bool is_minimal(const ca_locals& Z, const shared_state& s);
+    void minimize(const ca_locals& Z, const shared_state& s);
 
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
             const local_state& inc);
