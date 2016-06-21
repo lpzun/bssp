@@ -159,8 +159,11 @@ inline bool operator>(const thread_state& t1, const thread_state& t2) {
 }
 
 /// class global state
-typedef map<local_state, size_p> ca_locals;
-
+///
+#ifdef HASHMAP
+using ca_locals = unordered_map<local_state, size_p>;
+#endif
+using ca_locals = map<local_state, size_p>;
 class global_state {
 public:
     inline global_state();

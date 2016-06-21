@@ -10,13 +10,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 namespace COMPARE {
-short compare(clong& x, clong& y) {
-    if (x < y)
-        return -1;
-    if (x > y)
-        return +1;
-    return 0;
-}
 
 /**
  * @brief compare maps

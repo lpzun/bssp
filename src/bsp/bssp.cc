@@ -498,11 +498,11 @@ bool BSSP::is_covered(const ca_locals& Z1, const ca_locals& Z2) {
     while (it1 != Z1.cend()) {
         /// check if it2 reaches to the end
         if (it2 == Z2.cend())
-            return false;
+        return false;
         /// compare the map's contents
         if (it1->first == it2->first) {
             if (it1->second > it2->second)
-                return false;
+            return false;
             ++it1, ++it2;
         } else if (it1->first > it2->first) {
             ++it2;
@@ -510,6 +510,14 @@ bool BSSP::is_covered(const ca_locals& Z1, const ca_locals& Z2) {
             return false;
         }
     }
+#ifdef HASHMAP
+    while (it1 != Z1.cend()) {
+        auto ifind = Z2.find(it1->first);
+        if (ifind == Z2.end() || ifind->second < it1->second)
+            return false;
+        ++it1;
+    }
+#endif
     return true;
 }
 

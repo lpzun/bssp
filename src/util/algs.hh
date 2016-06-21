@@ -12,11 +12,9 @@
 
 /// namespace COMPARE
 namespace COMPARE {
-short compare(clong& x, clong& y);
 
 short compare_map(const map<ushort, ushort>& m1, const map<ushort, ushort>& m2);
-template<class T>
-short compare_container(const T& x, const T& y);
+template<class T> short compare_container(const T& x, const T& y);
 }
 
 namespace PPRINT {
