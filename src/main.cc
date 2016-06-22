@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-#include "bsp/bssp.hh"
+#include "bsp/sbssp.hh"
 #include "util/cmd.hh"
 #include "util/refer.hh"
 

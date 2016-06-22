@@ -5,15 +5,20 @@
  * @author: Peizun Liu
  */
 
-#ifndef BSP_BSSP_HH_
-#define BSP_BSSP_HH_
+#ifndef BSP_SBSSP_HH_
+#define BSP_SBSSP_HH_
 
 #include <thread>
+#include <future>
 
 #include "z3++.h"
+
+#include "../util/threadsafe_queue.hh"
 #include "../util/utilities.hh"
 
 using namespace z3;
+
+using std::future;
 
 namespace bssp {
 
@@ -51,16 +56,10 @@ private:
 
     /// the set of known uncoverable   system states
     adj_chain uncoverd;
-
     /// the set of already-expanded    system states
     adj_chain expanded;
-
     /// the set of backward discovered system states
-    deque<global_state> worklist;
-
-    /// the set of discovered system states after symbolic pruning
-    /// This is only used in the multithreading BSSP
-    deque<global_state> votelist;
+    deque<syst_state> worklist;
 
     void parse_input_TTS(const string& filename, const bool& is_self_loop =
             false);
@@ -69,17 +68,11 @@ private:
 
     /// backward search
     bool single_threaded_BSSP();
-    bool multi_threaded_BSSP();
 
     /// image computation
     deque<syst_state> step(const syst_state& _tau);
 
     bool is_coverable(const syst_state& tau);
-//    bool is_uncoverable(const syst_state& tau, const shared_state& s);
-//    bool is_covered(const syst_state& tau1, const syst_state& tau2);
-//    bool is_minimal(const syst_state& tau, const shared_state& s);
-//    void minimize(const syst_state& tau, antichain& W);
-
     bool is_uncoverable(const ca_locals& Z, const shared_state& s);
     bool is_covered(const ca_locals& Z1, const ca_locals& Z2);
     bool is_minimal(const ca_locals& Z, const shared_state& s);
@@ -111,7 +104,6 @@ private:
     vector<bool> l_encoding;
 
     bool single_threaded_SP(const syst_state& tau, const shared_state& s);
-    void multi_threaded_SP();
     bool solicit_for_TSE(const syst_state& tau);
     void build_TSE(const vector<incoming>& s_incoming,
             const vector<outgoing>& s_outgoing,
@@ -121,8 +113,29 @@ private:
             const vector<outgoing>& s_outgoing);
     vec_expr build_CL(const vector<incoming>& l_incoming,
             const vector<outgoing>& l_outgoing);
+
+    /////////////////////////////////////////////////////////////////////////
+    /// The following are the definitions for multithreading BSSP
+    ///
+    /////////////////////////////////////////////////////////////////////////
+    ///
+
+    using cantichain = threadsafe_queue<ca_locals>;
+    using cadj_chain = vector<cantichain>;
+    threadsafe_queue<syst_state> cworklist;
+    threadsafe_queue<syst_state> cvotelist;
+
+    //cadj_chain cexpanded;
+    cadj_chain cuncoverd;
+
+    std::atomic<bool> RUNNING;
+    std::atomic<bool> TERMINATE;
+
+    bool multi_threaded_BSSP();
+    bool multi_threaded_BS();
+    void multi_threaded_SP();
 };
 
 } /* namespace bssp */
 
-#endif /* BSP_BSSP_HH_ */
+#endif /* BSP_SBSSP_HH_ */
