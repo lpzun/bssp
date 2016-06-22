@@ -75,10 +75,6 @@ private:
     deque<syst_state> step(const syst_state& _tau);
 
     bool is_coverable(const syst_state& tau);
-//    bool is_uncoverable(const syst_state& tau, const shared_state& s);
-//    bool is_covered(const syst_state& tau1, const syst_state& tau2);
-//    bool is_minimal(const syst_state& tau, const shared_state& s);
-//    void minimize(const syst_state& tau, antichain& W);
 
     bool is_uncoverable(const ca_locals& Z, const shared_state& s);
     bool is_covered(const ca_locals& Z1, const ca_locals& Z2);
