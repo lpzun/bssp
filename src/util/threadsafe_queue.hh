@@ -50,7 +50,7 @@ public:
         shared_ptr<T> pv(std::make_shared<T>(std::move(_value)));
         lock_guard<mutex> lck(mtx);
         worklist.emplace_back(pv);
-        cond.notify_one();
+        cond.notify_all();
     }
 
     void pop(T& _value) {
@@ -132,7 +132,7 @@ public:
                 ++iw;
         }
         worklist.emplace_back(pv);
-        cond.notify_one();
+        cond.notify_all();
     }
 
 private:

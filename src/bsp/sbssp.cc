@@ -15,14 +15,14 @@ namespace bssp {
  * @param s_final
  * @param filename
  */
-BSSP::BSSP(const string& s_initl, const string& s_final, const string& filename) :
+SBSSP::SBSSP(const string& s_initl, const string& s_final,
+        const string& filename) :
         initl_TS(), final_SS(), active_R(), active_TS(), active_LR(), ///
-        uncoverd(), expanded(), worklist(),                           ///
-        ctx(), n_0(ctx.int_const("n0")), r_affix("r"), s_affix("s"),  ///
-        l_affix("l"), ssolver(
+        uncoverd(), expanded(), ctx(), n_0(ctx.int_const("n0")),      ///
+        r_affix("r"), s_affix("s"), l_affix("l"), ssolver(
                 (tactic(ctx, "simplify") & tactic(ctx, "solve-eqs")
                         & tactic(ctx, "smt")).mk_solver()),           ///
-        s_encoding(), l_encoding(), RUNNING(true), TERMINATE(false) {
+        s_encoding(), l_encoding(), n_pruning(0), n_uncover(0), n_unknown(0), elapsed() {
     this->initl_TS = this->parse_input_TS(s_initl);
     this->final_SS = this->parse_input_SS(s_final);
     this->parse_input_TTS(filename);
@@ -31,14 +31,14 @@ BSSP::BSSP(const string& s_initl, const string& s_final, const string& filename)
 /**
  * @brief destructor
  */
-BSSP::~BSSP() {
+SBSSP::~SBSSP() {
 }
 
 /**
  * @brief symbolic pruning backward search
  * @return bool
  */
-bool BSSP::symbolic_pruning_BWS() {
+bool SBSSP::symbolic_pruning_BWS() {
     return this->single_threaded_BSSP();
 }
 
@@ -47,7 +47,7 @@ bool BSSP::symbolic_pruning_BWS() {
  * @param state
  * @return system state
  */
-thread_state BSSP::parse_input_TS(const string& state) {
+thread_state SBSSP::parse_input_TS(const string& state) {
     if (state.find('|') == std::string::npos) { /// str_ts is store in a file
         ifstream in(state.c_str());
         if (in.good()) {
@@ -68,7 +68,7 @@ thread_state BSSP::parse_input_TS(const string& state) {
  * @param state
  * @return system state
  */
-syst_state BSSP::parse_input_SS(const string& state) {
+syst_state SBSSP::parse_input_SS(const string& state) {
     if (state.find('|') == std::string::npos) { /// str_ts is store in a file
         ifstream in(state.c_str());
         if (in.good()) {
@@ -89,7 +89,7 @@ syst_state BSSP::parse_input_SS(const string& state) {
  * @param filename
  * @param is_self_loop
  */
-void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
+void SBSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
     if (filename == "X")  /// no input file
         throw bws_runtime_error("Please assign the input file!");
     /// original input file before removing comments
@@ -263,7 +263,9 @@ void BSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
  *         true : if final state is coverable
  *         false: otherwise
  */
-bool BSSP::single_threaded_BSSP() {
+bool SBSSP::single_threaded_BSSP() {
+    /// the set of backward discovered system states
+    deque<syst_state> worklist;
     /// initialize worklist
     worklist.emplace_back(final_SS);
     cout << initl_TS << " " << final_SS << "\n";
@@ -282,17 +284,23 @@ bool BSSP::single_threaded_BSSP() {
 
         /// step 1: if \exists t \in <expanded> such that
         ///         t <= _tau then discard _tau
-        if (!is_minimal(_tau.get_locals(), s))
+        if (!is_minimal(_tau.get_locals(), s)) {
             continue;
+        }
 
         /// step 2: if \exists t \in <uncoverd> such that
         ///         t <= _tau then discard _tau
-        if (is_uncoverable(_tau.get_locals(), s))
+        if (is_uncoverable(_tau.get_locals(), s)) {
+#ifdef STATISTIC
+            ++n_pruning;
+#endif
             continue;
+        }
 
         /// step 3: if _tau is uncoverable via symbolic pruning
-        if (single_threaded_SP(_tau, s))
+        if (single_threaded_SP(_tau, s)) {
             continue;
+        }
 
         /// step 4: compute all cover preimages and handle
         ///         them one by one
@@ -319,7 +327,7 @@ bool BSSP::single_threaded_BSSP() {
  * @param _tau
  * @return all cover preimages
  */
-deque<syst_state> BSSP::step(const syst_state& _tau) {
+deque<syst_state> SBSSP::step(const syst_state& _tau) {
     deque<syst_state> images; /// the set of cover preimages
     for (const auto& r : this->active_LR[_tau.get_share()]) {
         const auto& tran = active_R[r];
@@ -357,7 +365,7 @@ deque<syst_state> BSSP::step(const syst_state& _tau) {
  *         true : tau is coverable
  *         false: otherwise
  */
-bool BSSP::is_coverable(const syst_state& tau) {
+bool SBSSP::is_coverable(const syst_state& tau) {
     if (tau.get_share() == initl_TS.get_share()) {
         if (tau.get_locals().size() == 1
                 && tau.get_locals().begin()->first == initl_TS.get_local())
@@ -374,7 +382,7 @@ bool BSSP::is_coverable(const syst_state& tau) {
  *         true : if exists w such that w <= tau
  *         false: otherwise
  */
-bool BSSP::is_uncoverable(const ca_locals& Z, const shared_state& s) {
+bool SBSSP::is_uncoverable(const ca_locals& Z, const shared_state& s) {
     for (const auto& w : uncoverd[s]) {
         if (is_covered(w, Z))
             return true;
@@ -389,7 +397,7 @@ bool BSSP::is_uncoverable(const ca_locals& Z, const shared_state& s) {
  * @return bool
  *
  */
-bool BSSP::single_threaded_SP(const syst_state& tau, const shared_state& s) {
+bool SBSSP::single_threaded_SP(const syst_state& tau, const shared_state& s) {
     if (solicit_for_TSE(tau)) {
         minimize(tau.get_locals(), s);
         uncoverd[s].emplace_back(tau.get_locals());
@@ -408,7 +416,7 @@ bool BSSP::single_threaded_SP(const syst_state& tau, const shared_state& s) {
  *         true : if tau1 <= tau2
  *         false: otherwise
  */
-bool BSSP::is_covered(const ca_locals& Z1, const ca_locals& Z2) {
+bool SBSSP::is_covered(const ca_locals& Z1, const ca_locals& Z2) {
     if (Z1.size() > Z2.size())
         return false;
 
@@ -448,7 +456,7 @@ bool BSSP::is_covered(const ca_locals& Z1, const ca_locals& Z2) {
  *         true :
  *         false:
  */
-bool BSSP::is_minimal(const ca_locals& Z, const shared_state& s) {
+bool SBSSP::is_minimal(const ca_locals& Z, const shared_state& s) {
     for (const auto& w : expanded[s]) {
         if (is_covered(w, Z)) {
             DBG_STD(cout << w << " " << tau << "\n";)
@@ -463,7 +471,7 @@ bool BSSP::is_minimal(const ca_locals& Z, const shared_state& s) {
  * @param tau:
  * @param W  :
  */
-void BSSP::minimize(const ca_locals& Z, const shared_state& s) {
+void SBSSP::minimize(const ca_locals& Z, const shared_state& s) {
     auto iw = expanded[s].begin();
     while (iw != expanded[s].end()) {
         if (is_covered(Z, *iw)) {
@@ -481,7 +489,7 @@ void BSSP::minimize(const ca_locals& Z, const shared_state& s) {
  * @param inc
  * @return local states parts
  */
-ca_locals BSSP::update_counter(const ca_locals &Z, const local_state &dec,
+ca_locals SBSSP::update_counter(const ca_locals &Z, const local_state &dec,
         const local_state &inc) {
     if (dec == inc)
         return Z;
@@ -515,7 +523,7 @@ ca_locals BSSP::update_counter(const ca_locals &Z, const local_state &dec,
  * @param is_updated
  * @return local states parts
  */
-ca_locals BSSP::update_counter(const ca_locals &Z, const local_state &dec,
+ca_locals SBSSP::update_counter(const ca_locals &Z, const local_state &dec,
         const local_state &inc, bool& is_updated) {
     auto _Z = Z;
     auto iinc = _Z.find(inc);
@@ -545,9 +553,12 @@ ca_locals BSSP::update_counter(const ca_locals &Z, const local_state &dec,
  *         true : means unsat, uncoverable
  *         false: means
  */
-bool BSSP::solicit_for_TSE(const syst_state& tau) {
-    vec_expr assumption(ctx);
+bool SBSSP::solicit_for_TSE(const syst_state& tau) {
+#ifdef STATISTIC
+    const auto start = std::chrono::high_resolution_clock::now();
+#endif
 
+    vec_expr assumption(ctx);
     for (size_l l = 0; l < thread_state::L && l_encoding[l]; ++l) {
         auto ifind = tau.get_locals().find(l);
         if (ifind != tau.get_locals().end())
@@ -558,7 +569,6 @@ bool BSSP::solicit_for_TSE(const syst_state& tau) {
             assumption.push_back(
                     ctx.int_const((l_affix + std::to_string(l)).c_str()) == 0);
     }
-
     for (size_l s = 0; s < thread_state::S && s_encoding[s]; ++s) {
         if (s == tau.get_share())
             assumption.push_back(
@@ -567,11 +577,23 @@ bool BSSP::solicit_for_TSE(const syst_state& tau) {
             assumption.push_back(
                     ctx.int_const((s_affix + std::to_string(s)).c_str()) == 0);
     }
+    const auto& result = ssolver.check(assumption);
 
-    switch (ssolver.check(assumption)) {
+#ifdef STATISTIC
+    const auto& end = std::chrono::high_resolution_clock::now();
+    elapsed += std::chrono::duration_cast<std::chrono::milliseconds>(
+            end - start);
+#endif
+    switch (result) {
     case unsat:
+#ifdef STATISTIC
+        ++n_uncover;
+#endif
         return true;
     default:
+#ifdef STATISTIC
+        ++n_unknown;
+#endif
         return false;
     }
 }
@@ -584,7 +606,7 @@ bool BSSP::solicit_for_TSE(const syst_state& tau) {
  * @param l_outgoing
  * @return a set of constraints
  */
-void BSSP::build_TSE(const vector<incoming>& s_incoming,
+void SBSSP::build_TSE(const vector<incoming>& s_incoming,
         const vector<outgoing>& s_outgoing, ///
         const vector<incoming>& l_incoming, ///
         const vector<outgoing>& l_outgoing) {
@@ -614,7 +636,7 @@ void BSSP::build_TSE(const vector<incoming>& s_incoming,
  * @param l_outgoing
  * @return the vector of constraints
  */
-vec_expr BSSP::build_CL(const vector<incoming>& l_incoming,
+vec_expr SBSSP::build_CL(const vector<incoming>& l_incoming,
         const vector<outgoing>& l_outgoing) {
     vec_expr phi(ctx);
 
@@ -648,7 +670,7 @@ vec_expr BSSP::build_CL(const vector<incoming>& l_incoming,
  * @param s_outgoing
  * @return the vector of constraints
  */
-vec_expr BSSP::build_CS(const vector<incoming>& s_incoming,
+vec_expr SBSSP::build_CS(const vector<incoming>& s_incoming,
         const vector<outgoing>& s_outgoing) {
     vec_expr phi(ctx);
 
@@ -674,104 +696,6 @@ vec_expr BSSP::build_CS(const vector<incoming>& s_incoming,
         phi.push_back(lhs == rhs);
     }
     return phi;
-}
-
-/////////////////////////////////////////////////////////////////////////
-/// The following are the definitions for multithreading BSSP
-///
-/////////////////////////////////////////////////////////////////////////
-
-/**
- * @brief the multithreading BWS with symbolic pruning
- * @return bool
- *         true : if final state is coverable
- *         false: otherwise
- */
-bool BSSP::multi_threaded_BSSP() {
-    /// the set of backward discovered system states
-    /// initialize worklist
-    cvotelist.push(final_SS);
-    cout << initl_TS << " " << final_SS << "\n";
-
-    /// the set of already-expanded    system states
-    //cexpanded = cadj_chain(thread_state::S);
-    /// the set of known uncoverable   system states
-    cuncoverd = cadj_chain(thread_state::S);
-
-    /// spawn a thread upon a member function
-    /// Here I use a lambda expression. This is a clean
-    /// and nice solution, if it works
-    ///
-
-    future<bool> bs = std::async(std::launch::async, &BSSP::multi_threaded_BS,
-            this);
-    future<void> sp = std::async(std::launch::async, &BSSP::multi_threaded_SP,
-            this);
-    if (bs.get())
-        return true;
-    return false;
-}
-
-/**
- * The multithreading BWS with symbolic pruning
- * @return bool
- *         true : if final state is coverable
- *         false: otherwise
- */
-bool BSSP::multi_threaded_BS() {
-    cout << "from BS: " << "\n";
-    expanded = adj_chain(thread_state::S, antichain());
-
-    while (!cworklist.empty() || !cvotelist.empty() || RUNNING) {
-        syst_state _tau;
-        if (!cworklist.try_pop(_tau))
-            continue;
-        cout << _tau << "\n";
-        const auto& s = _tau.get_share();
-        const auto& images = this->step(_tau);
-        for (const auto& tau : images) {
-            if (is_coverable(tau)) {
-                if (!TERMINATE)
-                    TERMINATE = true;
-                return true;
-            }
-            if (!is_minimal(_tau.get_locals(), s)
-                    || !cuncoverd[s].minimal(
-                            [&_tau,this](const shared_ptr<ca_locals> iw) {return is_covered(*iw, _tau.get_locals());})) {
-                if (RUNNING)
-                    RUNNING = false;
-                continue;
-            } else {
-                if (!RUNNING)
-                    RUNNING = true;
-                cvotelist.push(tau);
-            }
-        }
-        this->minimize(_tau.get_locals(), s);
-        expanded[s].emplace_back(_tau.get_locals());
-    }
-    return false;
-}
-
-void BSSP::multi_threaded_SP() {
-    while (!TERMINATE && (!cworklist.empty() || !cvotelist.empty() || RUNNING)) {
-        syst_state _tau;
-        if (!cvotelist.try_pop(_tau))
-            continue;
-        cout << _tau << "\n";
-        const auto& s = _tau.get_share();
-        if (solicit_for_TSE(_tau)) {
-            if (RUNNING)
-                RUNNING = false;
-            cuncoverd[s].minimize(_tau.get_locals(),
-                    [&_tau,this](shared_ptr<ca_locals> iw) {return !is_covered(*iw, _tau.get_locals());});
-            cuncoverd[s].push(_tau.get_locals());
-        } else {
-            if (!RUNNING)
-                RUNNING = true;
-            cworklist.push(_tau);
-        }
-    }
 }
 
 } /* namespace bssp */

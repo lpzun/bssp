@@ -8,8 +8,7 @@
 #ifndef BSP_SBSSP_HH_
 #define BSP_SBSSP_HH_
 
-#include <thread>
-#include <future>
+#include <chrono>
 
 #include "z3++.h"
 
@@ -18,12 +17,9 @@
 
 using namespace z3;
 
-using std::future;
-
 namespace bssp {
 
 using syst_state = global_state;
-//using antichain = deque<syst_state>;
 using antichain = deque<ca_locals>;
 using adj_chain = vector<antichain>;
 
@@ -39,14 +35,34 @@ enum class tse {
     reach = 0, unreach = 1, unknown = 2
 };
 
-class BSSP {
+class SBSSP {
 public:
-    BSSP(const string& s_initl, const string& s_final, const string& filename);
-    ~BSSP();
+    SBSSP(const string& s_initl, const string& s_final, const string& filename);
+    ~SBSSP();
 
     bool symbolic_pruning_BWS();
 
+    unsigned long int get_n_pruning() const {
+        return n_pruning;
+    }
+
+    unsigned long int get_n_unknown() const {
+        return n_unknown;
+    }
+
+    unsigned long int get_n_uncover() const {
+        return n_uncover;
+    }
+
+    std::chrono::duration<double> get_elapsed() const {
+        return elapsed;
+    }
+
 private:
+    /////////////////////////////////////////////////////////////////////////
+    /// PART 1. The following code are the definitions of backward search.
+    ///
+    /////////////////////////////////////////////////////////////////////////
     thread_state initl_TS;
     syst_state final_SS;
 
@@ -58,8 +74,6 @@ private:
     adj_chain uncoverd;
     /// the set of already-expanded    system states
     adj_chain expanded;
-    /// the set of backward discovered system states
-    deque<syst_state> worklist;
 
     void parse_input_TTS(const string& filename, const bool& is_self_loop =
             false);
@@ -84,7 +98,7 @@ private:
             const local_state& inc, bool& is_spawn);
 
     /////////////////////////////////////////////////////////////////////////
-    /// The following are the definitions for symbolic pruning.
+    /// PART 2. The following code are the definitions for symbolic pruning.
     ///
     /////////////////////////////////////////////////////////////////////////
 
@@ -103,6 +117,11 @@ private:
     vector<bool> s_encoding;
     vector<bool> l_encoding;
 
+    unsigned long int n_pruning;
+    unsigned long int n_uncover;
+    unsigned long int n_unknown;
+    std::chrono::duration<double> elapsed;
+
     bool single_threaded_SP(const syst_state& tau, const shared_state& s);
     bool solicit_for_TSE(const syst_state& tau);
     void build_TSE(const vector<incoming>& s_incoming,
@@ -113,27 +132,6 @@ private:
             const vector<outgoing>& s_outgoing);
     vec_expr build_CL(const vector<incoming>& l_incoming,
             const vector<outgoing>& l_outgoing);
-
-    /////////////////////////////////////////////////////////////////////////
-    /// The following are the definitions for multithreading BSSP
-    ///
-    /////////////////////////////////////////////////////////////////////////
-    ///
-
-    using cantichain = threadsafe_queue<ca_locals>;
-    using cadj_chain = vector<cantichain>;
-    threadsafe_queue<syst_state> cworklist;
-    threadsafe_queue<syst_state> cvotelist;
-
-    //cadj_chain cexpanded;
-    cadj_chain cuncoverd;
-
-    std::atomic<bool> RUNNING;
-    std::atomic<bool> TERMINATE;
-
-    bool multi_threaded_BSSP();
-    bool multi_threaded_BS();
-    void multi_threaded_SP();
 };
 
 } /* namespace bssp */

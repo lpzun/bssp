@@ -27,6 +27,9 @@
 #  define DBG_LOC();
 #endif // DEBUG
 
+
+#define STATISTIC
+
 namespace bssp {
 class debugger {
 public:

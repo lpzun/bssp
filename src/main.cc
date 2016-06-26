@@ -40,7 +40,7 @@ int main(const int argc, const char * const * const argv) {
         const string& final_ts = cmd.arg_value(cmd_line::prob_inst_opts(),
                 "--target");
 
-        BSSP bssp(initl_ts, final_ts, filename);
+        SBSSP bssp(initl_ts, final_ts, filename);
         bool is_reachable = bssp.symbolic_pruning_BWS();
         cout << "======================================================\n";
         cout << "Target";
@@ -50,6 +50,11 @@ int main(const int argc, const char * const * const argv) {
             cout << " is unreachable: verification successful!\n";
         cout << "======================================================"
                 << endl;
+
+        cout << "Pruning: " << bssp.get_n_pruning() << "\n";
+        cout << "Uncover: " << bssp.get_n_uncover() << "\n";
+        cout << "Unknown: " << bssp.get_n_pruning() << "\n";
+        cout << "Pruning time: " << bssp.get_elapsed().count() << "\n";
 
     } catch (const bws_exception& e) {
         e.what();
