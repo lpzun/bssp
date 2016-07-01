@@ -5,7 +5,7 @@
  * @author: Peizun Liu
  */
 
-#include "sbssp.hh"
+#include "bssp.hh"
 
 namespace bssp {
 

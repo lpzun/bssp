@@ -199,7 +199,7 @@ public:
     }
 
     inline static const string& opt_mode_fws() {
-        static string OPT_MODE_FWS = "F";
+        static string OPT_MODE_FWS = "S";
         return OPT_MODE_FWS;
     }
 

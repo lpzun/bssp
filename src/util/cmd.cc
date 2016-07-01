@@ -240,7 +240,7 @@ void cmd_line::create_argument_list() {
             "show the adjacency list");
 
     /// exploration mode
-//    options DBG_STD(cmd.add_option(SMT_SOLVER_OPTS, "-smt", "--smt-solver",
+//    options DBG_STD(cmd.add_option(opt_mode_con(), "-smt", "--smt-solver",
 //                    "set the SMT Solver to be used", "z3"));
 
     /// other options

@@ -5,7 +5,7 @@
  * @author: Peizun Liu
  */
 
-#include "cbssp.hh"
+#include "bssp.hh"
 
 namespace bssp {
 
@@ -18,7 +18,6 @@ namespace bssp {
 CBSSP::CBSSP(const string& s_initl, const string& s_final,
         const string& filename) :
         initl_TS(), final_SS(), active_R(), active_TS(), active_LR(), ///
-        uncoverd(), expanded(), worklist(),                           ///
         ctx(), n_0(ctx.int_const("n0")), r_affix("r"), s_affix("s"),  ///
         l_affix("l"), ssolver(
                 (tactic(ctx, "simplify") & tactic(ctx, "solve-eqs")
@@ -40,7 +39,7 @@ CBSSP::~CBSSP() {
  * @return bool
  */
 bool CBSSP::symbolic_pruning_BWS() {
-    return this->single_threaded_BSSP();
+    return this->multi_threaded_BSSP();
 }
 
 /**
@@ -49,7 +48,7 @@ bool CBSSP::symbolic_pruning_BWS() {
  * @return system state
  */
 thread_state CBSSP::parse_input_TS(const string& state) {
-    if (state.find('|') == std::string::npos) { /// str_ts is store in a file
+    if (state.find('|') == std::string::npos) { ///  store in a file
         ifstream in(state.c_str());
         if (in.good()) {
             string content;
@@ -70,7 +69,7 @@ thread_state CBSSP::parse_input_TS(const string& state) {
  * @return system state
  */
 syst_state CBSSP::parse_input_SS(const string& state) {
-    if (state.find('|') == std::string::npos) { /// str_ts is store in a file
+    if (state.find('|') == std::string::npos) { ///  store in a file
         ifstream in(state.c_str());
         if (in.good()) {
             string content;
@@ -259,63 +258,6 @@ void CBSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
 }
 
 /**
- * @brief the single-threading BWS with symbolic pruning
- * @return bool
- *         true : if final state is coverable
- *         false: otherwise
- */
-bool CBSSP::single_threaded_BSSP() {
-    /// initialize worklist
-    worklist.emplace_back(final_SS);
-    cout << initl_TS << " " << final_SS << "\n";
-
-    /// the set of already-expanded    system states
-    expanded = adj_chain(thread_state::S, antichain());
-    /// the set of known uncoverable   system states
-    uncoverd = adj_chain(thread_state::S, antichain());
-
-    while (!worklist.empty()) {
-        const auto _tau = worklist.front();
-        worklist.pop_front();
-        DBG_STD(cout << _tau << "\n";)
-
-        const auto& s = _tau.get_share();
-
-        /// step 1: if \exists t \in <expanded> such that
-        ///         t <= _tau then discard _tau
-        if (!is_minimal(_tau.get_locals(), s))
-            continue;
-
-        /// step 2: if \exists t \in <uncoverd> such that
-        ///         t <= _tau then discard _tau
-        if (is_uncoverable(_tau.get_locals(), s))
-            continue;
-
-        /// step 3: if _tau is uncoverable via symbolic pruning
-        if (single_threaded_SP(_tau, s))
-            continue;
-
-        /// step 4: compute all cover preimages and handle
-        ///         them one by one
-        const auto& images = this->step(_tau);
-        for (const auto& tau : images) {
-            DBG_STD(cout << "  " << tau << "\n";)
-            /// if tau \in upward(T_init), return true;
-            if (is_coverable(tau))
-                return true;
-            /// otherwise, push tau into the worklist.
-            worklist.emplace_back(tau);
-        }
-        /// step 5: insert _tau into the expanded states
-        ///      (1) minimize the set of expanded states
-        this->minimize(_tau.get_locals(), s);
-        ///      (2) append tau to the set of expanded states
-        expanded[s].emplace_back(_tau.get_locals());
-    }
-    return false;
-}
-
-/**
  * @brief compute _tau's cover preimages
  * @param _tau
  * @return all cover preimages
@@ -368,38 +310,6 @@ bool CBSSP::is_coverable(const syst_state& tau) {
 }
 
 /**
- * @brief check whether tau is uncoverable or not.
- * @param tau:
- * @param W  : the set of uncoverable system states
- * @return bool
- *         true : if exists w such that w <= tau
- *         false: otherwise
- */
-bool CBSSP::is_uncoverable(const ca_locals& Z, const shared_state& s) {
-    for (const auto& w : uncoverd[s]) {
-        if (is_covered(w, Z))
-            return true;
-    }
-    return false;
-}
-
-/**
- * @brief symbolic pruning
- * @param tau
- * @param W
- * @return bool
- *
- */
-bool CBSSP::single_threaded_SP(const syst_state& tau, const shared_state& s) {
-    if (solicit_for_TSE(tau)) {
-        minimize(tau.get_locals(), s);
-        uncoverd[s].emplace_back(tau.get_locals());
-        return true;
-    }
-    return false;
-}
-
-/**
  * To determine whether counter-abstracted local state part Z1 is covered
  * by counter-abstracted local state tau2.
  *        NOTE: this function assumes that both Z1 and Z2 are ordered.
@@ -442,15 +352,30 @@ bool CBSSP::is_covered(const ca_locals& Z1, const ca_locals& Z2) {
 }
 
 /**
- * @brief to determine if tau is the minimal state in W
+ *
+ * @param Z
+ * @param W
+ * @return
+ */
+bool CBSSP::is_uncoverable(const ca_locals& Z, const antichain& W) {
+    for (const auto& w : W) {
+        if (is_covered(w, Z))
+            return true;
+    }
+    return false;
+
+}
+
+/**
+ * To determine if tau is the minimal state in W
  * @param tau:
  * @param W  :
  * @return bool
  *         true :
  *         false:
  */
-bool CBSSP::is_minimal(const ca_locals& Z, const shared_state& s) {
-    for (const auto& w : expanded[s]) {
+bool CBSSP::is_minimal(const ca_locals& Z, const antichain& W) {
+    for (const auto& w : W) {
         if (is_covered(w, Z)) {
             DBG_STD(cout << w << " " << tau << "\n";)
             return false;
@@ -464,11 +389,11 @@ bool CBSSP::is_minimal(const ca_locals& Z, const shared_state& s) {
  * @param tau:
  * @param W  :
  */
-void CBSSP::minimize(const ca_locals& Z, const shared_state& s) {
-    auto iw = expanded[s].begin();
-    while (iw != expanded[s].end()) {
+void CBSSP::minimize(const ca_locals& Z, antichain& W) {
+    auto iw = W.begin();
+    while (iw != W.end()) {
         if (is_covered(Z, *iw)) {
-            iw = expanded[s].erase(iw);
+            iw = W.erase(iw);
         } else {
             ++iw;
         }
@@ -697,17 +622,14 @@ bool CBSSP::multi_threaded_BSSP() {
     /// the set of already-expanded    system states
     //cexpanded = cadj_chain(thread_state::S);
     /// the set of known uncoverable   system states
-    cuncoverd = cadj_chain(thread_state::S);
 
     /// spawn a thread upon a member function
     /// Here I use a lambda expression. This is a clean
     /// and nice solution, if it works
     ///
 
-    future<bool> bs = std::async(std::launch::async, &CBSSP::multi_threaded_BS,
-            this);
-    future<void> sp = std::async(std::launch::async, &CBSSP::multi_threaded_SP,
-            this);
+    auto bs = std::async(std::launch::async, &CBSSP::multi_threaded_BS, this);
+    auto sp = std::async(std::launch::async, &CBSSP::multi_threaded_SP, this);
     if (bs.get())
         return true;
     return false;
@@ -720,8 +642,8 @@ bool CBSSP::multi_threaded_BSSP() {
  *         false: otherwise
  */
 bool CBSSP::multi_threaded_BS() {
-    cout << "from BS: " << "\n";
-    expanded = adj_chain(thread_state::S, antichain());
+    cout << "from BS: \n";
+    adj_chain cexpanded = adj_chain(thread_state::S, antichain());
 
     while (!cworklist.empty() || !cvotelist.empty() || RUNNING) {
         syst_state _tau;
@@ -729,16 +651,14 @@ bool CBSSP::multi_threaded_BS() {
             continue;
         cout << _tau << "\n";
         const auto& s = _tau.get_share();
-        const auto& images = this->step(_tau);
+        const auto& images = step(_tau);
         for (const auto& tau : images) {
             if (is_coverable(tau)) {
                 if (!TERMINATE)
                     TERMINATE = true;
                 return true;
             }
-            if (!is_minimal(_tau.get_locals(), s)
-                    || !cuncoverd[s].minimal(
-                            [&_tau,this](const shared_ptr<ca_locals> iw) {return is_covered(*iw, _tau.get_locals());})) {
+            if (!is_minimal(_tau.get_locals(), cexpanded[s])) {
                 if (RUNNING)
                     RUNNING = false;
                 continue;
@@ -748,25 +668,36 @@ bool CBSSP::multi_threaded_BS() {
                 cvotelist.push(tau);
             }
         }
-        this->minimize(_tau.get_locals(), s);
-        expanded[s].emplace_back(_tau.get_locals());
+        this->minimize(_tau.get_locals(), cexpanded[s]);
+        cexpanded[s].emplace_back(_tau.get_locals());
     }
     return false;
 }
 
+/**
+ * Multithreading symbolic pruning
+ */
 void CBSSP::multi_threaded_SP() {
+    cout << "from SP: \n";
+    adj_chain cuncoverd = adj_chain(thread_state::S, antichain());
+
     while (!TERMINATE && (!cworklist.empty() || !cvotelist.empty() || RUNNING)) {
         syst_state _tau;
         if (!cvotelist.try_pop(_tau))
             continue;
         cout << _tau << "\n";
         const auto& s = _tau.get_share();
+        if (is_uncoverable(_tau.get_locals(), cuncoverd[s])) {
+            if (RUNNING)
+                RUNNING = false;
+            continue;
+        }
+
         if (solicit_for_TSE(_tau)) {
             if (RUNNING)
                 RUNNING = false;
-            cuncoverd[s].minimize(_tau.get_locals(),
-                    [&_tau,this](shared_ptr<ca_locals> iw) {return !is_covered(*iw, _tau.get_locals());});
-            cuncoverd[s].push(_tau.get_locals());
+            this->minimize(_tau.get_locals(), cuncoverd[s]);
+            cuncoverd[s].emplace_back(_tau.get_locals());
         } else {
             if (!RUNNING)
                 RUNNING = true;
