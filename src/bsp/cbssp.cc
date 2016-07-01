@@ -628,8 +628,8 @@ bool CBSSP::multi_threaded_BSSP() {
     /// and nice solution, if it works
     ///
 
-    auto bs = std::async(std::launch::async, &CBSSP::multi_threaded_BS, this);
-    auto sp = std::async(std::launch::async, &CBSSP::multi_threaded_SP, this);
+    auto bs = std::async(&CBSSP::multi_threaded_BS, this);
+    auto sp = std::async(&CBSSP::multi_threaded_SP, this);
     if (bs.get())
         return true;
     return false;
@@ -649,7 +649,7 @@ bool CBSSP::multi_threaded_BS() {
         syst_state _tau;
         if (!cworklist.try_pop(_tau))
             continue;
-        cout << _tau << "\n";
+        cout << "BS: " << _tau << "\n";
         const auto& s = _tau.get_share();
         const auto& images = step(_tau);
         for (const auto& tau : images) {
@@ -685,7 +685,7 @@ void CBSSP::multi_threaded_SP() {
         syst_state _tau;
         if (!cvotelist.try_pop(_tau))
             continue;
-        cout << _tau << "\n";
+        cout << "SP: " << _tau << "\n";
         const auto& s = _tau.get_share();
         if (is_uncoverable(_tau.get_locals(), cuncoverd[s])) {
             if (RUNNING)
