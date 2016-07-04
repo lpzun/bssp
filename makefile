@@ -37,8 +37,8 @@ FLAGS        = -Wall -g $(ISTD)#                          -O3, -D__SAFE_COMPUTAT
 SOURCES      = $(shell find $(SRCDIR) -name '*.$(CSUFF)') #$(wildcard *.$(CSUFF))#            list of local files that will be compiled and linked into executable
 
 # For compiling:
-IDIRS        =#                                   -I$(C)
-HEADERS      = $(wildcard *.$(HSUFF))#            may set to a single .h file if only one specific file is compiled
+IDIRS        = $(SRCDIR)/util/#                                   -I$(C)
+HEADERS      = $(shell find $(SRCDIR) -name '*.$(HSUFF)') #$(wildcard *.$(HSUFF))#            may set to a single .h file if only one specific file is compiled
 
 # For linking:
 #BASE         = $(firstword $(BASES))#             executable (final compilation). If directory contains several .c files, redefine this
@@ -72,7 +72,7 @@ LOBJECTS = $(patsubst %.$(CSUFF),$(OBJDIR)/%.o, $(SOURCES:.$(CSUFF)=.o)) #
 RDIRS    = $(foreach VAR,$(ROBJVARS),$(dir $(firstword $($(VAR)))))
 ROBJECTS = $(foreach VAR,$(ROBJVARS),$($(VAR)))
 OBJECTS  = $(LOBJECTS) $(ROBJECTS)
-CFLAGS   = $(FLAGS) $(IDIRS) $(IINCLUDE)#
+CFLAGS   = $(FLAGS) -I$(IDIRS) $(IINCLUDE)#
 LFLAGS   = $(FLAGS) $(LDIRS)
 RERROR   = { echo "error in recursive make robjects";  exit 1; }
 DERROR   = { echo "error in recursive make distclean"; exit 1; }

@@ -240,8 +240,8 @@ void cmd_line::create_argument_list() {
             "show the adjacency list");
 
     /// exploration mode
-//    options DBG_STD(cmd.add_option(opt_mode_con(), "-smt", "--smt-solver",
-//                    "set the SMT Solver to be used", "z3"));
+    this->add_option(exp_mode_opts(), "-m", "--mode",
+            "\"S\" sequential BSSP; \"S\" concurrent BSSP", "S");
 
     /// other options
     this->add_switch(other_opts(), "-cmd", "--cmd-line",

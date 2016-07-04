@@ -37,8 +37,9 @@ int main(const int argc, const char * const * const argv) {
                 "--initial");
         const string& final_ts = cmd.arg_value(cmd_line::prob_inst_opts(),
                 "--target");
-        const string& mode = "C";
-        if (mode == "S") {
+        const string& mode = cmd.arg_value(cmd_line::exp_mode_opts(), "--mode");
+        cout << mode << "\n";
+        if (mode == "C") {
             SBSSP bssp(initl_ts, final_ts, filename);
             bool is_reachable = bssp.symbolic_pruning_BWS();
             cout << "======================================================\n";
