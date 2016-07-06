@@ -15,6 +15,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <condition_variable>
 
 using std::cout;
 using std::cin;
@@ -37,7 +38,7 @@ namespace bssp {
 template<typename T> class threadsafe_queue {
 public:
     threadsafe_queue() :
-            mtx(), cond(), worklist() {
+            mtx(), condv(), worklist() {
     }
 
     ~threadsafe_queue() {
@@ -50,19 +51,19 @@ public:
         shared_ptr<T> pv(std::make_shared<T>(std::move(_value)));
         lock_guard<mutex> lck(mtx);
         worklist.emplace_back(pv);
-        cond.notify_all();
+        condv.notify_all();
     }
 
     void pop(T& _value) {
         unique_lock<mutex> lck(mtx);
-        cond.wait(lck, [this] {return !worklist.empty();});
+        condv.wait(lck, [this] {return !worklist.empty();});
         _value = std::move(*worklist.front());
         worklist.pop_front();
     }
 
     std::shared_ptr<T> pop() {
         unique_lock<mutex> lck(mtx);
-        cond.wait(lck, [this] {return !worklist.empty();});
+        condv.wait(lck, [this] {return !worklist.empty();});
         shared_ptr<T> res = worklist.front();
         worklist.pop_front();
         return res;
@@ -132,12 +133,12 @@ public:
                 ++iw;
         }
         worklist.emplace_back(pv);
-        cond.notify_all();
+        condv.notify_all();
     }
 
 private:
     mutable mutex mtx;
-    condition_variable cond;
+    condition_variable condv;
     deque<shared_ptr<T>> worklist;
 
 };

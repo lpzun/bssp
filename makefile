@@ -17,7 +17,7 @@
 # Override these variables (or add new ones) locally
 APP	         = bssp # the name of application
 Z3DIR        = /usr/local/Z3#          
-ILIBS        = -L $(Z3DIR)/lib -lz3#                                   -lm # config your z3 lib     here
+ILIBS        = -L $(Z3DIR)/lib -lz3 -lpthread#                                   -lm # config your z3 lib     here
 IINCLUDE     = -I $(Z3DIR)/include/#                                       # config your z3 include here
 
 #ISTD	     = -std=c++0x                                                 # for old cpp standard
@@ -37,7 +37,7 @@ FLAGS        = -Wall -g $(ISTD)#                          -O3, -D__SAFE_COMPUTAT
 SOURCES      = $(shell find $(SRCDIR) -name '*.$(CSUFF)') #$(wildcard *.$(CSUFF))#            list of local files that will be compiled and linked into executable
 
 # For compiling:
-IDIRS        = $(SRCDIR)/util/#                                   -I$(C)
+IDIRS        = -I $(SRCDIR)/util/#                                   -I$(C)
 HEADERS      = $(shell find $(SRCDIR) -name '*.$(HSUFF)') #$(wildcard *.$(HSUFF))#            may set to a single .h file if only one specific file is compiled
 
 # For linking:
@@ -72,8 +72,8 @@ LOBJECTS = $(patsubst %.$(CSUFF),$(OBJDIR)/%.o, $(SOURCES:.$(CSUFF)=.o)) #
 RDIRS    = $(foreach VAR,$(ROBJVARS),$(dir $(firstword $($(VAR)))))
 ROBJECTS = $(foreach VAR,$(ROBJVARS),$($(VAR)))
 OBJECTS  = $(LOBJECTS) $(ROBJECTS)
-CFLAGS   = $(FLAGS) -I$(IDIRS) $(IINCLUDE)#
-LFLAGS   = $(FLAGS) $(LDIRS)
+CFLAGS   = $(FLAGS) $(IDIRS) $(IINCLUDE) -pg#
+LFLAGS   = $(FLAGS) $(LDIRS) -pg
 RERROR   = { echo "error in recursive make robjects";  exit 1; }
 DERROR   = { echo "error in recursive make distclean"; exit 1; }
 
