@@ -636,7 +636,7 @@ bool CBSSP::multi_threaded_BSSP() {
 }
 
 /**
- * The multithreading BWS with symbolic pruning
+ * Multithreading BWS with symbolic pruning
  * @return bool
  *         true : if final state is coverable
  *         false: otherwise
@@ -649,7 +649,7 @@ bool CBSSP::multi_threaded_BS() {
         syst_state _tau;
         if (!cworklist.try_pop(_tau))
             continue;
-//        cout << "BS: " << _tau << "\n";
+        cout << "BS: " << _tau << "\n";
         const auto& s = _tau.get_share();
         const auto& images = step(_tau);
         for (const auto& tau : images) {
@@ -671,6 +671,8 @@ bool CBSSP::multi_threaded_BS() {
         this->minimize(_tau.get_locals(), cexpanded[s]);
         cexpanded[s].emplace_back(_tau.get_locals());
     }
+    if (!TERMINATE)
+        TERMINATE = true;
     return false;
 }
 
@@ -685,7 +687,7 @@ void CBSSP::multi_threaded_SP() {
         syst_state _tau;
         if (!cvotelist.try_pop(_tau))
             continue;
-//        cout << "SP: " << _tau << "\n";
+        cout << "SP: " << _tau << "\n";
         const auto& s = _tau.get_share();
         if (is_uncoverable(_tau.get_locals(), cuncoverd[s])) {
             if (RUNNING)
