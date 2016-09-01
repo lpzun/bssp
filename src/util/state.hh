@@ -169,6 +169,8 @@ public:
     inline global_state();
     inline global_state(const thread_state& t);
     inline global_state(const thread_state& t, const size_p& n);
+    inline global_state(const shared_state& s, const local_state&l,
+            const size_p& n);
     inline global_state(const shared_state& share, const ca_locals& locals);
     inline global_state(const global_state& s);
 
@@ -216,6 +218,18 @@ inline global_state::global_state(const thread_state& t) :
 inline global_state::global_state(const thread_state& t, const size_p& n) :
         share(t.get_share()), locals(ca_locals()) {
     locals.emplace(t.get_local(), n);
+}
+
+/**
+ *
+ * @param s
+ * @param l
+ * @param n
+ */
+inline global_state::global_state(const shared_state& s, const local_state& l,
+        const size_p& n) :
+        share(s), locals(ca_locals()) {
+    locals.emplace(l, n);
 }
 
 /**

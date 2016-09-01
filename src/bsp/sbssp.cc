@@ -48,7 +48,7 @@ bool SBSSP::symbolic_pruning_BWS() {
  * @return system state
  */
 thread_state SBSSP::parse_input_TS(const string& state) {
-    if (state.find('|') == std::string::npos) { /// str_ts is store in a file
+    if (state.find('|') == std::string::npos) { /// state is store in a file
         ifstream in(state.c_str());
         if (in.good()) {
             string content;
@@ -92,11 +92,11 @@ syst_state SBSSP::parse_input_SS(const string& state) {
 void SBSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
     if (filename == "X")  /// no input file
         throw bws_runtime_error("Please assign the input file!");
-    /// original input file before removing comments
 
+    /// original input file before removing comments
     ifstream org_in(filename.c_str());
     if (!org_in.good())
-        throw bws_runtime_error("Input file does not find!");
+        throw bws_runtime_error("Input file does not exist!");
     iparser::remove_comments(org_in, refer::TMP_FILENAME, refer::COMMENT);
     org_in.close();
 
@@ -298,7 +298,8 @@ bool SBSSP::single_threaded_BSSP() {
         }
 
         /// step 3: if _tau is uncoverable via symbolic pruning
-        if (single_threaded_SP(_tau, s)) {
+//        if (single_threaded_SP(_tau, s)) {
+        if (widen(_tau)) {
             continue;
         }
 
@@ -388,6 +389,16 @@ bool SBSSP::is_uncoverable(const ca_locals& Z, const shared_state& s) {
             return true;
     }
     return false;
+}
+
+bool SBSSP::widen(const syst_state& tau) {
+    for (const auto& p : tau.get_locals()) {
+        syst_state w(tau.get_share(), p.first, p.second);
+        if (single_threaded_SP(w, tau.get_share())) {
+            return true;
+        }
+    }
+    return single_threaded_SP(tau, tau.get_share());
 }
 
 /**

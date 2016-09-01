@@ -122,6 +122,8 @@ private:
     unsigned long int n_unknown;
     std::chrono::duration<double> elapsed;
 
+    bool widen(const syst_state& tau);
+
     bool single_threaded_SP(const syst_state& tau, const shared_state& s);
     bool solicit_for_TSE(const syst_state& tau);
     void build_TSE(const vector<incoming>& s_incoming,
@@ -145,9 +147,16 @@ private:
     bool is_minimal(const ca_locals& Z, const shared_state& s);
     void minimize(const ca_locals& Z, const shared_state& s);
 
+    /////////////////////////////////////////////////////////////////////////
+    /// PART 5. The following are the definitions for Karp-Miller procedure
+    ///
+    /////////////////////////////////////////////////////////////////////////
+    ///
+    /// forward search
+
 };
 
-/// Multi-threading
+/// Multi-threaded backward coverability analysis with symbolic pruning
 ///
 ///
 class CBSSP {

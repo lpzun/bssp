@@ -39,6 +39,7 @@ int main(const int argc, const char * const * const argv) {
                 "--target");
         const string& mode = cmd.arg_value(cmd_line::exp_mode_opts(), "--mode");
         if (mode == "S") {
+            cout << "Sequential BWS with Symbolic Pruning:\n";
             SBSSP bssp(initl_ts, final_ts, filename);
             bool is_reachable = bssp.symbolic_pruning_BWS();
             cout << "======================================================\n";

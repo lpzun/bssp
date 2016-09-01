@@ -51,6 +51,7 @@ global_state utils::create_global_state_from_str(const string& s_ts,
         locals[stoi(l)]++;
     return global_state(stoi(vs_ts[0]), locals);
 }
+
 /**
  * @brief print all of the transitions in the thread-state transition diagram
  * @param adjacency_list
