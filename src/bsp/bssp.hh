@@ -74,9 +74,9 @@ private:
     vector<thread_state> active_TS; /// thread states
     vector<incoming> active_LR; /// incoming edge for shared states
 
-    /// the set of known uncoverable   system states
+    /// the set of known uncoverable system states
     adj_chain uncoverd;
-    /// the set of already-expanded    system states
+    /// the set of already-expanded  system states
     adj_chain expanded;
 
     void parse_input_TTS(const string& filename, const bool& is_self_loop =

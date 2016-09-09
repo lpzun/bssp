@@ -391,6 +391,11 @@ bool SBSSP::is_uncoverable(const ca_locals& Z, const shared_state& s) {
     return false;
 }
 
+/**
+ * This is a procedure for widen a system state tau
+ * @param tau
+ * @return bool
+ */
 bool SBSSP::widen(const syst_state& tau) {
     for (const auto& p : tau.get_locals()) {
         syst_state w(tau.get_share(), p.first, p.second);
