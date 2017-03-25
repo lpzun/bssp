@@ -72,7 +72,9 @@ private:
 
     vector<transition> active_R; /// TTS in transitions
     vector<thread_state> active_TS; /// thread states
-    vector<incoming> active_LR; /// incoming edge for shared states
+    vector<incoming> active_INC; /// incoming edge for shared states
+
+    map<thread_state, deque<id_transition>> original_TTS;
 
     /// the set of known uncoverable system states
     adj_chain uncoverd;
@@ -97,6 +99,8 @@ private:
             const local_state& inc);
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
             const local_state& inc, bool& is_spawn);
+    // (s1,l1) +> (s2,l2): <s1|l1> +> <s2|l1,l2>
+    ca_locals increment_counter(const ca_locals& Z, const local_state& inc);
 
     /////////////////////////////////////////////////////////////////////////
     /// PART 3. The following code are the definitions for symbolic pruning.
@@ -152,8 +156,23 @@ private:
     ///
     /////////////////////////////////////////////////////////////////////////
     ///
-    /// forward search
+    /// karp-miller procedure
 
+    /////////////////////////////////////////////////////////////////////////
+    /// PART 6. The following are the definitions for finite-state forward
+    /// search and dynamic convergence detection
+    ///
+    /////////////////////////////////////////////////////////////////////////
+    ///
+    /// finite-state forward search
+    size_p convergence_detection();
+    bool standard_FWS();
+    bool standard_FWS(const size_p& n, const size_p& s);
+    bool is_maximal(const syst_state& s, const deque<syst_state>& explored);
+    void maximize(const syst_state& s, deque<syst_state>& worklist);
+    bool is_reached(const syst_state& s);
+    deque<syst_state> step(const syst_state& tau, size_p& spw);
+    void extract_candidate_triple(const vector<vector<bool>>& R);
 };
 
 /// Multi-threaded backward coverability analysis with symbolic pruning
