@@ -40,8 +40,7 @@ SBSSP::~SBSSP() {
  * @return bool
  */
 bool SBSSP::symbolic_pruning_BWS() {
-    //return this->single_threaded_BSSP();
-    return this->standard_FWS();
+    return this->single_threaded_BSSP(final_SS);
 }
 
 /**
@@ -263,16 +262,29 @@ void SBSSP::parse_input_TTS(const string& filename, const bool& is_self_loop) {
 
 /**
  * @brief the single-threading BWS with symbolic pruning
- * @return bool
- *         true : if final state is coverable
- *         false: otherwise
+ * @param sf: target state
+ * @return size_p
+ *          > 0: final state is coverable with that # of threads
+ *          = 0: uncoverable
  */
-bool SBSSP::single_threaded_BSSP() {
+size_p SBSSP::single_threaded_BSSP(const syst_state& sf) {
+    return single_threaded_BSSP(syst_state(initl_TS), sf);
+}
+
+/**
+ * @brief the single-threading BWS with symbolic pruning
+ * @param si: initial state
+ * @param sf: target state
+ * @return size_p
+ *          > 0: final state is coverable with that # of threads
+ *          = 0: uncoverable
+ */
+size_p SBSSP::single_threaded_BSSP(const syst_state& si, const syst_state& sf) {
     /// the set of backward discovered system states
     deque<syst_state> worklist;
     /// initialize worklist
-    worklist.emplace_back(final_SS);
-    cout << initl_TS << " " << final_SS << "\n";
+    worklist.emplace_back(sf);
+    //cout << si << " " << sf << "\n";
 
     /// the set of already-expanded    system states
     expanded = adj_chain(thread_state::S, antichain());
@@ -313,8 +325,9 @@ bool SBSSP::single_threaded_BSSP() {
         for (const auto& tau : images) {
             DBG_STD(cout << "  " << tau << "\n";)
             /// if tau \in upward(T_init), return true;
-            if (is_coverable(tau))
-                return true;
+            if (is_coverable(tau, si))
+                return tau.get_locals().begin()->second;
+
             /// otherwise, push tau into the worklist.
             worklist.emplace_back(tau);
         }
@@ -324,7 +337,7 @@ bool SBSSP::single_threaded_BSSP() {
         ///      (2) append tau to the set of expanded states
         expanded[s].emplace_back(_tau.get_locals());
     }
-    return false;
+    return 0; /// unreachable
 }
 
 /**
@@ -370,10 +383,11 @@ deque<syst_state> SBSSP::step(const syst_state& _tau) {
  *         true : tau is coverable
  *         false: otherwise
  */
-bool SBSSP::is_coverable(const syst_state& tau) {
-    if (tau.get_share() == initl_TS.get_share()) {
+bool SBSSP::is_coverable(const syst_state& tau, const syst_state& init) {
+    if (tau.get_share() == init.get_share()) {
         if (tau.get_locals().size() == 1
-                && tau.get_locals().begin()->first == initl_TS.get_local())
+                && tau.get_locals().begin()->first
+                        == init.get_locals().begin()->first)
             return true;
     }
     return false;
@@ -583,7 +597,6 @@ bool SBSSP::solicit_for_TSE(const syst_state& tau) {
 #ifdef STATISTIC
     const auto start = std::chrono::high_resolution_clock::now();
 #endif
-
     vec_expr assumption(ctx);
     for (size_l l = 0; l < thread_state::L && l_encoding[l]; ++l) {
         auto ifind = tau.get_locals().find(l);
@@ -730,23 +743,27 @@ vec_expr SBSSP::build_CS(const vector<incoming>& s_incoming,
 ///
 /////////////////////////////////////////////////////////////////////////
 
-size_p SBSSP::convergence_detection() {
-    size_p n = 1;
-
-    return n;
-}
-
 /**
- * @brief standard finite state search
- * @return bool
+ * One interesting point: we add some on-the-fly flavor when extract the
+ * candidate triples.
+ *
+ * @return the convergence
  */
-bool SBSSP::standard_FWS() {
+size_p SBSSP::cutoff_detection() {
+    reached_TS = vector<vector<bool>>(thread_state::S,
+            vector<bool>(thread_state::S, false));
     size_p n = 1;
     size_p s = 1;
-    while (n < 10 && s < 10) {
-        standard_FWS(n++, s++);
+    while (true) {
+        cout << "With >= " << n << " threads, candidate triples are:\n";
+        standard_FWS(n++, s);
+        auto p = extract_candidate_triples(reached_TS);
+        if (p.second > n)
+            n = p.second;
+        if (p.first == 0)
+            return --n;
     }
-    return false;
+    return n;
 }
 
 /**
@@ -758,16 +775,16 @@ bool SBSSP::standard_FWS() {
  *         false: otherwise
  */
 bool SBSSP::standard_FWS(const size_p& n, const size_p& s) {
+    // cout<<n<<"========================\n"; // delete----------------
     auto spw = s;       /// the upper bound of spawns that can be fired
     deque<syst_state> worklist;
     deque<syst_state> explored;
 
     worklist.emplace_back(initl_TS, n);
-    cout << n << " " << s << endl;
+    reached_TS[initl_TS.get_share()][initl_TS.get_local()] = true;
     while (!worklist.empty()) {
         const auto tau = worklist.front();
         worklist.pop_front();
-        cout << tau << endl;
 
         /// step 1: if upward(tau) is already explored, then
         ///         discard it
@@ -776,16 +793,16 @@ bool SBSSP::standard_FWS(const size_p& n, const size_p& s) {
 
         /// step 2: compute all post images; check if final
         ///         state is coverable; maximize <worklist>
-        const auto& images = this->step(tau, spw);
+        const auto& images = step(tau, spw);
         for (const auto& _tau : images) {
             /// return true if _tau covers final state
-            if (false && this->is_reached(_tau))
+            if (false && is_reached(_tau))
                 return true;
             /// if upward(_tau) already exists, then discard it
-            if (!this->is_maximal(_tau, worklist))
+            if (!is_maximal(_tau, worklist))
                 continue;
             /// maximize <worklist> in term of _tau
-            this->maximize(_tau, worklist);
+            maximize(_tau, worklist);
             worklist.emplace_back(_tau);        /// insert into worklist
         }
         /// maximize <explored> in term of tau
@@ -828,6 +845,13 @@ deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
                     const auto& _Z = this->increment_counter(tau.get_locals(),
                             post.get_local());
                     images.emplace_back(post.get_share(), _Z);
+
+                    /// compute new reachable thread states
+                    reached_TS[post.get_share()][post.get_local()] = true;
+                    if (post.get_share() != curr.get_share()) {
+                        for (const auto& p : _Z)
+                            reached_TS[post.get_share()][p.first] = true;
+                    }
                 }
                     break;
                 default: {
@@ -835,6 +859,13 @@ deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
                     const auto& _Z = this->update_counter(tau.get_locals(),
                             curr.get_local(), post.get_local());
                     images.emplace_back(post.get_share(), _Z);
+
+                    /// compute new reachable thread states
+                    reached_TS[post.get_share()][post.get_local()] = true;
+                    if (post.get_share() != curr.get_share()) {
+                        for (const auto& p : _Z)
+                            reached_TS[post.get_share()][p.first] = true;
+                    }
                 }
                     break;
                 }
@@ -880,38 +911,58 @@ bool SBSSP::is_reached(const syst_state& s) {
 /**
  *
  * @param R: the set of reachable thread states
+ * @return the number of candidate triples
  */
-void SBSSP::extract_candidate_triple(const vector<vector<bool>>& R) {
+pair<int, size_p> SBSSP::extract_candidate_triples(
+        const vector<vector<bool>>& R) {
+    int cnt = 0;
+    size_p n = 0;
     for (auto s = 0; s < thread_state::S; ++s) {
         for (auto l = 0; l < thread_state::L; ++l) {
             if (!R[s][l]) // unreachable thread state
                 continue;
-            /// u    v
+            /// candidate triples
+            /// u    v <= this is the candidate reachable thread state
             /// |    |
             /// p    q
             thread_state p(s, l);
             auto ifind = this->original_TTS.find(p);
-            if (ifind != this->original_TTS.end()) {
-                for (const auto id : ifind->second) { // successors
-                    const auto& tran = active_R[id];
-                    const auto& u = active_TS[tran.get_dst()];
-                    if (p.get_share() == u.get_share())
-                        continue;
-                    for (auto local = 0; local < thread_state::L; ++local) {
-                        if (local != u.get_local()) {
-                            thread_state q(p.get_share(), local);
-                            thread_state v(u.get_share(), local);
-                            if (R[q.get_share()][q.get_local()]
-                                    && !R[v.get_share()][v.get_local()])
-                                cout << "p = " << p << ", q = " << q << ", u = "
-                                        << u << ", v = " << v << "\n";
+            /// p has no successors
+            if (ifind == this->original_TTS.end()) {
+                continue;
+            }
+            /// otherwise
+            for (const auto id : ifind->second) { // successors
+                const auto& tran = active_R[id];
+                const auto& u = active_TS[tran.get_dst()];
+                if (p.get_share() == u.get_share())
+                    continue;
+                for (auto local = 0; local < thread_state::L; ++local) {
+                    if (local != u.get_local()) {
+                        thread_state q(p.get_share(), local);
+                        thread_state v(u.get_share(), local);
+                        if (R[q.get_share()][q.get_local()]
+                                && !R[v.get_share()][v.get_local()]
+                                && unreached_TS.find(v) == unreached_TS.end()) {
+                            cout << "p = " << p << ", q = " << q << ", u = "
+                                    << u << ", v = " << v << "\n";
+                            n = std::max(n,
+                                    single_threaded_BSSP(syst_state(v)));
+                            if (n > 0) {
+                                ++cnt;
+                                reached_TS[v.get_share()][v.get_local()] = true;
+                            } else {
+                                unreached_TS.emplace(v);
+                            }
+
                         }
                     }
                 }
             }
-
-        }
-    }
+        } /// end of enumerating local states
+    } /// end of enumerating shared states
+    return std::make_pair(cnt, n);
 }
 
-} /* namespace bssp */
+}
+/* namespace bssp */

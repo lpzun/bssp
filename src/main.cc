@@ -38,7 +38,16 @@ int main(const int argc, const char * const * const argv) {
         const string& final_ts = cmd.arg_value(cmd_line::prob_inst_opts(),
                 "--target");
         const string& mode = cmd.arg_value(cmd_line::exp_mode_opts(), "--mode");
-        if (mode == "S") {
+        if (mode == "D") {
+            cout << "Convergence detection:\n";
+            SBSSP bssp(initl_ts, final_ts, filename);
+            auto convergence = bssp.cutoff_detection();
+            cout << "======================================================\n";
+            cout << "The convergence for reachable thread states "
+                    << convergence << "\n";
+            cout << "======================================================"
+                    << endl;
+        } else if (mode == "S") {
             cout << "Sequential BWS with Symbolic Pruning:\n";
             SBSSP bssp(initl_ts, final_ts, filename);
             bool is_reachable = bssp.symbolic_pruning_BWS();

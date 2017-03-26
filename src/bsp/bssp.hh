@@ -45,20 +45,21 @@ public:
     ~SBSSP();
 
     bool symbolic_pruning_BWS();
+    size_p cutoff_detection();
 
-    unsigned long int get_n_pruning() const {
+    inline unsigned long int get_n_pruning() const {
         return n_pruning;
     }
 
-    unsigned long int get_n_unknown() const {
+    inline unsigned long int get_n_unknown() const {
         return n_unknown;
     }
 
-    unsigned long int get_n_uncover() const {
+    inline unsigned long int get_n_uncover() const {
         return n_uncover;
     }
 
-    std::chrono::duration<double> get_elapsed() const {
+    inline std::chrono::duration<double> get_elapsed() const {
         return elapsed;
     }
 
@@ -93,7 +94,7 @@ private:
     /// image computation
     deque<syst_state> step(const syst_state& _tau);
 
-    bool is_coverable(const syst_state& tau);
+    bool is_coverable(const syst_state& tau, const syst_state& init);
     bool is_covered(const ca_locals& Z1, const ca_locals& Z2);
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
             const local_state& inc);
@@ -145,7 +146,8 @@ private:
     /////////////////////////////////////////////////////////////////////////
     ///
     /// backward search
-    bool single_threaded_BSSP();
+    size_p single_threaded_BSSP(const syst_state& sf);
+    size_p single_threaded_BSSP(const syst_state& si, const syst_state& sf);
 
     bool is_uncoverable(const ca_locals& Z, const shared_state& s);
     bool is_minimal(const ca_locals& Z, const shared_state& s);
@@ -165,14 +167,16 @@ private:
     /////////////////////////////////////////////////////////////////////////
     ///
     /// finite-state forward search
-    size_p convergence_detection();
-    bool standard_FWS();
+
+    vector<vector<bool>> reached_TS;
+    set<thread_state> unreached_TS;
+
     bool standard_FWS(const size_p& n, const size_p& s);
     bool is_maximal(const syst_state& s, const deque<syst_state>& explored);
     void maximize(const syst_state& s, deque<syst_state>& worklist);
     bool is_reached(const syst_state& s);
     deque<syst_state> step(const syst_state& tau, size_p& spw);
-    void extract_candidate_triple(const vector<vector<bool>>& R);
+    pair<int, size_p> extract_candidate_triples(const vector<vector<bool>>& R);
 };
 
 /// Multi-threaded backward coverability analysis with symbolic pruning

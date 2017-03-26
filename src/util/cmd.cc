@@ -241,7 +241,8 @@ void cmd_line::create_argument_list() {
 
     /// exploration mode
     this->add_option(exp_mode_opts(), "-m", "--mode",
-            "\"S\" sequential BSSP; \"S\" concurrent BSSP", "S");
+            "\"S\" sequential BSSP; \"C\" concurrent BSSP; \"D\" convergence detection",
+            "S");
 
     /// other options
     this->add_switch(other_opts(), "-cmd", "--cmd-line",
