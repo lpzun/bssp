@@ -168,15 +168,17 @@ private:
     ///
     /// finite-state forward search
 
-    vector<vector<bool>> reached_TS;
-    set<thread_state> unreached_TS;
+    vector<vector<bool>> reachable_TS;
+    set<thread_state> unreachable_TS;
+    set<thread_state> old_cand_triples;
 
     bool standard_FWS(const size_p& n, const size_p& s);
     bool is_maximal(const syst_state& s, const deque<syst_state>& explored);
     void maximize(const syst_state& s, deque<syst_state>& worklist);
     bool is_reached(const syst_state& s);
     deque<syst_state> step(const syst_state& tau, size_p& spw);
-    pair<int, size_p> extract_candidate_triples(const vector<vector<bool>>& R);
+    set<thread_state> extract_cand_triples(const vector<vector<bool>>& R);
+    size_p cand_triple_coverability(const set<thread_state>& new_cand_triples);
 };
 
 /// Multi-threaded backward coverability analysis with symbolic pruning

@@ -750,18 +750,20 @@ vec_expr SBSSP::build_CS(const vector<incoming>& s_incoming,
  * @return the convergence
  */
 size_p SBSSP::cutoff_detection() {
-    reached_TS = vector<vector<bool>>(thread_state::S,
+    reachable_TS = vector<vector<bool>>(thread_state::S,
             vector<bool>(thread_state::S, false));
     size_p n = 1;
     size_p s = 1;
     while (true) {
-        cout << "With >= " << n << " threads, candidate triples are:\n";
+        cout << "With " << n << " threads, candidate triples are:\n";
         standard_FWS(n++, s);
-        auto p = extract_candidate_triples(reached_TS);
-        if (p.second > n)
-            n = p.second;
-        if (p.first == 0)
+        const auto& triples = extract_cand_triples(reachable_TS);
+        if (triples.size() == 0)
             return --n;
+        const auto max_thr = cand_triple_coverability(triples);
+        if (max_thr > n)
+            n = max_thr;
+        old_cand_triples = triples;
     }
     return n;
 }
@@ -781,7 +783,7 @@ bool SBSSP::standard_FWS(const size_p& n, const size_p& s) {
     deque<syst_state> explored;
 
     worklist.emplace_back(initl_TS, n);
-    reached_TS[initl_TS.get_share()][initl_TS.get_local()] = true;
+    reachable_TS[initl_TS.get_share()][initl_TS.get_local()] = true;
     while (!worklist.empty()) {
         const auto tau = worklist.front();
         worklist.pop_front();
@@ -847,10 +849,10 @@ deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
                     images.emplace_back(post.get_share(), _Z);
 
                     /// compute new reachable thread states
-                    reached_TS[post.get_share()][post.get_local()] = true;
+                    reachable_TS[post.get_share()][post.get_local()] = true;
                     if (post.get_share() != curr.get_share()) {
                         for (const auto& p : _Z)
-                            reached_TS[post.get_share()][p.first] = true;
+                            reachable_TS[post.get_share()][p.first] = true;
                     }
                 }
                     break;
@@ -861,10 +863,10 @@ deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
                     images.emplace_back(post.get_share(), _Z);
 
                     /// compute new reachable thread states
-                    reached_TS[post.get_share()][post.get_local()] = true;
+                    reachable_TS[post.get_share()][post.get_local()] = true;
                     if (post.get_share() != curr.get_share()) {
                         for (const auto& p : _Z)
-                            reached_TS[post.get_share()][p.first] = true;
+                            reachable_TS[post.get_share()][p.first] = true;
                     }
                 }
                     break;
@@ -913,10 +915,8 @@ bool SBSSP::is_reached(const syst_state& s) {
  * @param R: the set of reachable thread states
  * @return the number of candidate triples
  */
-pair<int, size_p> SBSSP::extract_candidate_triples(
-        const vector<vector<bool>>& R) {
-    int cnt = 0;
-    size_p n = 0;
+set<thread_state> SBSSP::extract_cand_triples(const vector<vector<bool>>& R) {
+    set<thread_state> new_cand_triples;
     for (auto s = 0; s < thread_state::S; ++s) {
         for (auto l = 0; l < thread_state::L; ++l) {
             if (!R[s][l]) // unreachable thread state
@@ -937,31 +937,47 @@ pair<int, size_p> SBSSP::extract_candidate_triples(
                 const auto& u = active_TS[tran.get_dst()];
                 if (p.get_share() == u.get_share())
                     continue;
-                for (auto local = 0; local < thread_state::L; ++local) {
+                for (auto local = 0; local < thread_state::L; ++local)
                     if (local != u.get_local()) {
                         thread_state q(p.get_share(), local);
                         thread_state v(u.get_share(), local);
                         if (R[q.get_share()][q.get_local()]
                                 && !R[v.get_share()][v.get_local()]
-                                && unreached_TS.find(v) == unreached_TS.end()) {
+                                && unreachable_TS.find(v)
+                                        == unreachable_TS.end()) {
                             cout << "p = " << p << ", q = " << q << ", u = "
                                     << u << ", v = " << v << "\n";
-                            n = std::max(n,
-                                    single_threaded_BSSP(syst_state(v)));
-                            if (n > 0) {
-                                ++cnt;
-                                reached_TS[v.get_share()][v.get_local()] = true;
-                            } else {
-                                unreached_TS.emplace(v);
-                            }
-
+                            new_cand_triples.emplace(v);
                         }
                     }
-                }
             }
         } /// end of enumerating local states
     } /// end of enumerating shared states
-    return std::make_pair(cnt, n);
+    return new_cand_triples;
+}
+
+/**
+ *
+ * @param new_cand_triples
+ * @return
+ */
+size_p SBSSP::cand_triple_coverability(
+        const set<thread_state>& new_cand_triples) {
+    size_p n = 0;
+    for (const auto v : new_cand_triples) {
+        /// if v is the first time to appear in a candidate triples
+        if (old_cand_triples.find(v) == old_cand_triples.end())
+            continue;
+        /// otherwise, v has been appeared in last round
+        const auto x = single_threaded_BSSP(syst_state(v));
+        if (x > 0) {
+            n = x > n ? x : n;
+            reachable_TS[v.get_share()][v.get_local()] = true;
+        } else {
+            unreachable_TS.emplace(v);
+        }
+    }
+    return n;
 }
 
 }
