@@ -284,7 +284,7 @@ size_p SBSSP::single_threaded_BSSP(const syst_state& si, const syst_state& sf) {
     deque<syst_state> worklist;
     /// initialize worklist
     worklist.emplace_back(sf);
-    //cout << si << " " << sf << "\n";
+    cout << si << " " << sf << "\n";
 
     /// the set of already-expanded    system states
     expanded = adj_chain(thread_state::S, antichain());
@@ -479,6 +479,20 @@ bool SBSSP::is_covered(const ca_locals& Z1, const ca_locals& Z2) {
         ++it1;
     }
 #endif
+    return true;
+}
+
+bool SBSSP::is_equal(const ca_locals& Z1, const ca_locals& Z2) {
+    if (Z1.size() != Z2.size())
+        return false;
+
+    auto it1 = Z1.cbegin();
+    auto it2 = Z2.cbegin();
+    while (it1 != Z1.cend() && it2 != Z2.cend()) {
+        if (it1->first != it2->first || it1->second != it2->second)
+            return false;
+        ++it1, ++it2;
+    }
     return true;
 }
 
@@ -752,18 +766,20 @@ vec_expr SBSSP::build_CS(const vector<incoming>& s_incoming,
 size_p SBSSP::cutoff_detection() {
     reachable_TS = vector<vector<bool>>(thread_state::S,
             vector<bool>(thread_state::S, false));
-    size_p n = 1;
-    size_p s = 1;
-    while (true) {
-        cout << "With " << n << " threads, candidate triples are:\n";
-        standard_FWS(n++, s);
+    size_p n = 0;
+    size_p s = 0;
+    while (n < 5) {
+        cout << "With " << n + 1 << " threads, candidate triples are:\n";
+        standard_FWS(++n, s);
         const auto& triples = extract_cand_triples(reachable_TS);
         if (triples.size() == 0)
-            return --n;
-        const auto max_thr = cand_triple_coverability(triples);
-        if (max_thr > n)
-            n = max_thr;
-        old_cand_triples = triples;
+            return n;
+//        if (old_cand_triples.size() > 0) {
+//            const auto max_thr = cand_triple_coverability(triples);
+//            if (max_thr > n)
+//                n = max_thr;
+//        }
+//        old_cand_triples = triples;
     }
     return n;
 }
@@ -777,11 +793,11 @@ size_p SBSSP::cutoff_detection() {
  *         false: otherwise
  */
 bool SBSSP::standard_FWS(const size_p& n, const size_p& s) {
-    // cout<<n<<"========================\n"; // delete----------------
     auto spw = s;       /// the upper bound of spawns that can be fired
+    /// worklist
     deque<syst_state> worklist;
-    deque<syst_state> explored;
-
+    /// the set of already-expanded    system states
+    adj_chain expanded = adj_chain(thread_state::S, antichain());
     worklist.emplace_back(initl_TS, n);
     reachable_TS[initl_TS.get_share()][initl_TS.get_local()] = true;
     while (!worklist.empty()) {
@@ -790,26 +806,37 @@ bool SBSSP::standard_FWS(const size_p& n, const size_p& s) {
 
         /// step 1: if upward(tau) is already explored, then
         ///         discard it
-        if (!this->is_maximal(tau, explored))
+        if (is_expanded(tau.get_locals(), expanded[tau.get_share()]))
             continue;
 
         /// step 2: compute all post images; check if final
         ///         state is coverable; maximize <worklist>
         const auto& images = step(tau, spw);
+        //cout << images.size() << endl;
         for (const auto& _tau : images) {
             /// return true if _tau covers final state
-            if (false && is_reached(_tau))
-                return true;
-            /// if upward(_tau) already exists, then discard it
-            if (!is_maximal(_tau, worklist))
-                continue;
-            /// maximize <worklist> in term of _tau
-            maximize(_tau, worklist);
+            ///if (false && is_reached(_tau))
+            ///    return true;
             worklist.emplace_back(_tau);        /// insert into worklist
         }
+        cout<<"-------+++++++++++++----------\n";
         /// maximize <explored> in term of tau
-        this->maximize(tau, explored);
-        explored.emplace_back(tau); /// insert into explored
+        expanded[tau.get_share()].emplace_back(tau.get_locals()); /// insert into explored
+        cout<<"-------------==========--------\n";
+    }
+    return false;
+}
+
+/**
+ *
+ * @param Z
+ * @param s
+ * @return
+ */
+bool SBSSP::is_expanded(const ca_locals& Z, const antichain& W) {
+    for (const auto& w : W) {
+        if (is_equal(w, Z))
+            return true;
     }
     return false;
 }
@@ -821,6 +848,7 @@ bool SBSSP::standard_FWS(const size_p& n, const size_p& s) {
  * @return the set of post images
  */
 deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
+    cout << "--------------beginning image-------" << tau << endl;
     deque<syst_state> images;
 
     const auto& s = tau.get_share();
@@ -874,40 +902,8 @@ deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
             }
         }
     }
+    cout << "ending...................images\n";
     return images;
-}
-
-/**
- * @brief check if some already-explored state covers s, and maximize explored
- * @param s
- * @param explored
- * @return
- */
-bool SBSSP::is_maximal(const syst_state& s, const deque<syst_state>& explored) {
-    for (auto itau = explored.begin(); itau != explored.end(); ++itau) {
-        if (this->is_covered(s.get_locals(), itau->get_locals())) {
-            return false;
-        }
-    }
-    return true;
-}
-
-/**
- * @brief maximize
- * @param worklist
- */
-void SBSSP::maximize(const syst_state& s, deque<syst_state>& worklist) {
-    for (auto itau = worklist.begin(); itau != worklist.end();) {
-        if (this->is_covered(itau->get_locals(), s.get_locals())) {
-            itau = worklist.erase(itau);
-        } else {
-            ++itau;
-        }
-    }
-}
-
-bool SBSSP::is_reached(const syst_state& s) {
-    return false;
 }
 
 /**
@@ -978,6 +974,39 @@ size_p SBSSP::cand_triple_coverability(
         }
     }
     return n;
+}
+
+/**
+ * @brief check if some already-explored state covers s, and maximize explored
+ * @param s
+ * @param explored
+ * @return
+ */
+bool SBSSP::is_maximal(const syst_state& s, const deque<syst_state>& explored) {
+    for (auto itau = explored.begin(); itau != explored.end(); ++itau) {
+        if (this->is_covered(s.get_locals(), itau->get_locals())) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief maximize
+ * @param worklist
+ */
+void SBSSP::maximize(const syst_state& s, deque<syst_state>& worklist) {
+    for (auto itau = worklist.begin(); itau != worklist.end();) {
+        if (this->is_covered(itau->get_locals(), s.get_locals())) {
+            itau = worklist.erase(itau);
+        } else {
+            ++itau;
+        }
+    }
+}
+
+bool SBSSP::is_reached(const syst_state& s) {
+    return false;
 }
 
 }

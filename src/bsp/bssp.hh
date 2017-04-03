@@ -96,6 +96,7 @@ private:
 
     bool is_coverable(const syst_state& tau, const syst_state& init);
     bool is_covered(const ca_locals& Z1, const ca_locals& Z2);
+    bool is_equal(const ca_locals& Z1, const ca_locals& Z2);
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
             const local_state& inc);
     ca_locals update_counter(const ca_locals& Z, const local_state& dec,
@@ -159,6 +160,9 @@ private:
     /////////////////////////////////////////////////////////////////////////
     ///
     /// karp-miller procedure
+    bool is_maximal(const syst_state& s, const deque<syst_state>& explored);
+    void maximize(const syst_state& s, deque<syst_state>& worklist);
+    bool is_reached(const syst_state& s);
 
     /////////////////////////////////////////////////////////////////////////
     /// PART 6. The following are the definitions for finite-state forward
@@ -173,12 +177,10 @@ private:
     set<thread_state> old_cand_triples;
 
     bool standard_FWS(const size_p& n, const size_p& s);
-    bool is_maximal(const syst_state& s, const deque<syst_state>& explored);
-    void maximize(const syst_state& s, deque<syst_state>& worklist);
-    bool is_reached(const syst_state& s);
     deque<syst_state> step(const syst_state& tau, size_p& spw);
     set<thread_state> extract_cand_triples(const vector<vector<bool>>& R);
     size_p cand_triple_coverability(const set<thread_state>& new_cand_triples);
+    bool is_expanded(const ca_locals& Z, const antichain& W);
 };
 
 /// Multi-threaded backward coverability analysis with symbolic pruning
