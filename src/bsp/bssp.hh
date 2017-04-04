@@ -172,6 +172,7 @@ private:
     ///
     /// finite-state forward search
 
+    bool is_growing_RTS; /// reachable thread states keeps growing
     vector<vector<bool>> reachable_TS;
     set<thread_state> unreachable_TS;
     set<thread_state> old_cand_triples;
@@ -180,7 +181,10 @@ private:
     deque<syst_state> step(const syst_state& tau, size_p& spw);
     set<thread_state> extract_cand_triples(const vector<vector<bool>>& R);
     size_p cand_triple_coverability(const set<thread_state>& new_cand_triples);
+
     bool is_expanded(const ca_locals& Z, const antichain& W);
+    void update_reachable_TS(const thread_state& curr, const thread_state& post,
+            const ca_locals& _Z);
 };
 
 /// Multi-threaded backward coverability analysis with symbolic pruning

@@ -769,8 +769,11 @@ size_p SBSSP::cutoff_detection() {
     size_p n = 0;
     size_p s = 0;
     while (n < 5) {
-        cout << "With " << n + 1 << " threads, candidate triples are:\n";
+        is_growing_RTS = false;
         standard_FWS(++n, s);
+        if (is_growing_RTS)
+            continue;
+        cout << "With " << n << " threads, candidate triples are:\n";
         const auto& triples = extract_cand_triples(reachable_TS);
         if (triples.size() == 0)
             return n;
@@ -819,24 +822,10 @@ bool SBSSP::standard_FWS(const size_p& n, const size_p& s) {
             ///    return true;
             worklist.emplace_back(_tau);        /// insert into worklist
         }
-        cout<<"-------+++++++++++++----------\n";
+        //cout << "-------+++++++++++++----------\n";
         /// maximize <explored> in term of tau
         expanded[tau.get_share()].emplace_back(tau.get_locals()); /// insert into explored
-        cout<<"-------------==========--------\n";
-    }
-    return false;
-}
-
-/**
- *
- * @param Z
- * @param s
- * @return
- */
-bool SBSSP::is_expanded(const ca_locals& Z, const antichain& W) {
-    for (const auto& w : W) {
-        if (is_equal(w, Z))
-            return true;
+        //cout << "-------------==========--------\n";
     }
     return false;
 }
@@ -848,7 +837,7 @@ bool SBSSP::is_expanded(const ca_locals& Z, const antichain& W) {
  * @return the set of post images
  */
 deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
-    cout << "--------------beginning image-------" << tau << endl;
+    //cout << "--------------beginning image-------" << tau << endl;
     deque<syst_state> images;
 
     const auto& s = tau.get_share();
@@ -877,11 +866,7 @@ deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
                     images.emplace_back(post.get_share(), _Z);
 
                     /// compute new reachable thread states
-                    reachable_TS[post.get_share()][post.get_local()] = true;
-                    if (post.get_share() != curr.get_share()) {
-                        for (const auto& p : _Z)
-                            reachable_TS[post.get_share()][p.first] = true;
-                    }
+                    update_reachable_TS(curr, post, _Z);
                 }
                     break;
                 default: {
@@ -891,19 +876,53 @@ deque<syst_state> SBSSP::step(const syst_state& tau, size_p& spw) {
                     images.emplace_back(post.get_share(), _Z);
 
                     /// compute new reachable thread states
-                    reachable_TS[post.get_share()][post.get_local()] = true;
-                    if (post.get_share() != curr.get_share()) {
-                        for (const auto& p : _Z)
-                            reachable_TS[post.get_share()][p.first] = true;
-                    }
+                    update_reachable_TS(curr, post, _Z);
                 }
                     break;
                 }
             }
         }
     }
-    cout << "ending...................images\n";
+    //cout << "ending...................images\n";
     return images;
+}
+
+/**
+ *
+ * @param Z
+ * @param s
+ * @return
+ */
+bool SBSSP::is_expanded(const ca_locals& Z, const antichain& W) {
+    for (const auto& w : W) {
+        if (is_equal(w, Z))
+            return true;
+    }
+    return false;
+}
+
+/**
+ *
+ * @param s1
+ * @param s2
+ * @param _Z
+ */
+void SBSSP::update_reachable_TS(const thread_state& curr,
+        const thread_state& post, const ca_locals& _Z) {
+    /// compute new reachable thread states
+    if (post.get_share() != curr.get_share()) {
+        for (const auto& p : _Z) {
+            if (!reachable_TS[post.get_share()][p.first]) {
+                is_growing_RTS = true;
+                reachable_TS[post.get_share()][p.first] = true;
+            }
+        }
+    } else {
+        if (!reachable_TS[post.get_share()][post.get_local()]) {
+            is_growing_RTS = true;
+            reachable_TS[post.get_share()][post.get_local()] = true;
+        }
+    }
 }
 
 /**
